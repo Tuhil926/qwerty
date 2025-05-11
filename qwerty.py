@@ -314,7 +314,13 @@ class Entry:
         self.on_navigation = on_navigation
         kv_width = self.width - self.height
         self.key_inp = TextInput(self.pos, kv_width / 2 - 3, self.height, text=key, alt_text="key", on_navigation=self.on_navigation)
-        self.val_inp = TextInput((self.pos[0] + kv_width / 2 + 3, self.pos[1]), kv_width / 2 - 3, self.height, text=val, alt_text="value", hidden_unless_focused=True, on_navigation=self.on_navigation)
+        self.val_inp = TextInput((self.pos[0] + kv_width / 2 + 3, self.pos[1]),
+                                 kv_width / 2 - 3,
+                                 self.height,
+                                 text=val,
+                                 alt_text="value",
+                                 hidden_unless_focused=True,
+                                 on_navigation=self.on_navigation)
         self.del_button = Button((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height, onClick=self.delete_self, text="X")
 
     def draw(self, screen):
@@ -352,10 +358,13 @@ class EntryList:
         self.spacing = 60
         self.curr_focused = -1
         self.entry_list = [
-            Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue) for i in range(len(entries))
+            Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue)
+            for i in range(len(entries))
         ]
         self.add_button = Button((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, 50, "+", onClick=self.add_entry)
-        self.navigate_queue = [0, ]
+        self.navigate_queue = [
+            0,
+        ]
 
     def draw(self, screen):
         for entry in self.entry_list:
@@ -381,18 +390,14 @@ class EntryList:
             if entry.key_inp.is_focused:
                 self.curr_focused = i
             elif entry.val_inp.is_focused:
-                self.curr_focused = i+1
+                self.curr_focused = i + 1
             i += 2
-        # if (len(self.entry_list) + 2) * self.spacing > SCREEN_HEIGHT:
-        #     self.spacing -= 1
-        #     if self.spacing <= self.entry_height + 2:
-        #         self.entry_height -= 1
         self.add_button.update(mouseState)
         while len(self.navigate_queue):
             dir = self.navigate_queue.pop()
             self.navigate(dir)
         if abs(self.pos[1] - self.y_val) > 0.01:
-            self.pos[1] += 10*(self.y_val - self.pos[1])*delta
+            self.pos[1] += 10 * (self.y_val - self.pos[1]) * delta
             self.update_dims(self.pos, self.width)
 
     def navigate_enqueue(self, dir):
@@ -403,9 +408,9 @@ class EntryList:
             if len(self.entry_list):
                 self.entry_list[0].key_inp.is_focused = True
             return
-        focused_ind = self.curr_focused//2
-        is_key = not self.curr_focused%2
-        if dir==0:
+        focused_ind = self.curr_focused // 2
+        is_key = not self.curr_focused % 2
+        if dir == 0:
             if not focused_ind:
                 return
             if is_key:
@@ -415,8 +420,8 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind - 1].val_inp.is_focused = True
             focused_ind -= 1
-        elif dir==2:
-            if focused_ind == len(self.entry_list)-1:
+        elif dir == 2:
+            if focused_ind == len(self.entry_list) - 1:
                 return
             if is_key:
                 self.entry_list[focused_ind].key_inp.is_focused = False
@@ -425,7 +430,7 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind + 1].val_inp.is_focused = True
             focused_ind += 1
-        elif dir==1:
+        elif dir == 1:
             if focused_ind == 0 and is_key:
                 return
             if is_key:
@@ -435,8 +440,8 @@ class EntryList:
             else:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind].key_inp.is_focused = True
-        elif dir==3:
-            if focused_ind == len(self.entry_list)-1 and not is_key:
+        elif dir == 3:
+            if focused_ind == len(self.entry_list) - 1 and not is_key:
                 return
             if is_key:
                 self.entry_list[focused_ind].key_inp.is_focused = False
@@ -445,10 +450,10 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind + 1].key_inp.is_focused = True
                 focused_ind += 1
-        elif dir==4:
+        elif dir == 4:
             if not len(self.entry_list):
                 return
-            new_ind = min(len(self.entry_list)-1, focused_ind + 6)
+            new_ind = min(len(self.entry_list) - 1, focused_ind + 6)
             if is_key:
                 self.entry_list[focused_ind].key_inp.is_focused = False
                 self.entry_list[new_ind].key_inp.is_focused = True
@@ -456,7 +461,7 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[new_ind].val_inp.is_focused = True
             focused_ind = new_ind
-        elif dir==5:
+        elif dir == 5:
             if not len(self.entry_list):
                 return
             new_ind = max(0, focused_ind - 6)
@@ -467,7 +472,7 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[new_ind].val_inp.is_focused = True
             focused_ind = new_ind
-        elif dir==6:
+        elif dir == 6:
             if not len(self.entry_list):
                 return
             new_ind = len(self.entry_list) - 1
@@ -478,16 +483,15 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[new_ind].key_inp.is_focused = True
             focused_ind = new_ind
-        if focused_ind == len(self.entry_list)-1:
-            self.y_val = min(SCREEN_HEIGHT - self.spacing - (focused_ind + 1)*self.spacing, 10)
+        if focused_ind == len(self.entry_list) - 1:
+            self.y_val = min(SCREEN_HEIGHT - self.spacing - (focused_ind + 1) * self.spacing, 10)
             self.update_dims(self.pos, self.width)
-        if self.y_val + (focused_ind + 1)*self.spacing > SCREEN_HEIGHT:
-            self.y_val -= self.y_val + (focused_ind + 1)*self.spacing - SCREEN_HEIGHT
+        if self.y_val + (focused_ind + 1) * self.spacing > SCREEN_HEIGHT:
+            self.y_val -= self.y_val + (focused_ind + 1) * self.spacing - SCREEN_HEIGHT
             self.update_dims(self.pos, self.width)
-        if self.y_val + focused_ind*self.spacing < 10:
-            self.y_val = 10 - focused_ind*self.spacing
+        if self.y_val + focused_ind * self.spacing < 10:
+            self.y_val = 10 - focused_ind * self.spacing
             self.update_dims(self.pos, self.width)
-
 
     def add_entry(self, entry=("", "")):
         self.entry_list.append(Entry((0, 0), 0, 0, key=entry[0], val=entry[1], on_navigation=self.navigate_enqueue))
@@ -530,12 +534,12 @@ class MainPage:
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
             if event.type == pygame.MOUSEWHEEL:
-                if len(self.entry_list.entry_list)*self.entry_list.spacing > SCREEN_HEIGHT:
-                    self.entry_list.y_val += event.y*10000*delta
+                if len(self.entry_list.entry_list) * self.entry_list.spacing > SCREEN_HEIGHT:
+                    self.entry_list.y_val += event.y * 10000 * delta
                 if self.entry_list.y_val > 10:
                     self.entry_list.y_val = 10
-                if self.entry_list.y_val < -(len(self.entry_list.entry_list))*self.entry_list.spacing:
-                    self.entry_list.y_val = -(len(self.entry_list.entry_list))*self.entry_list.spacing
+                if self.entry_list.y_val < -(len(self.entry_list.entry_list)) * self.entry_list.spacing:
+                    self.entry_list.y_val = -(len(self.entry_list.entry_list)) * self.entry_list.spacing
                 self.entry_list.update_dims(self.entry_list.pos, self.entry_list.width)
 
         self.entry_list.update(keys, mouseState, delta, events)
