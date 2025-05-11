@@ -212,7 +212,7 @@ class TextInput:
                             self.text += event.unicode
                         if self.on_navigation:
                             self.on_navigation(-1)
-                    elif event.key == pygame.K_c and keys[pygame.K_LCTRL]:
+                    elif event.key == pygame.K_c and keys[pygame.K_LCTRL] and self.text != "":
                         pyperclip.copy(self.text)
                         if self.on_navigation:
                             self.on_navigation(-1)
@@ -409,7 +409,10 @@ class EntryList:
     def navigate(self, dir):
         if self.curr_focused == -1:
             if len(self.entry_list):
-                self.entry_list[0].key_inp.is_focused = True
+                if dir == 6:
+                    self.entry_list[-1].key_inp.is_focused = True
+                else:
+                    self.entry_list[0].key_inp.is_focused = True
             return
         focused_ind = self.curr_focused // 2
         is_key = not self.curr_focused % 2
