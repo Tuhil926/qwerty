@@ -1,0 +1,561 @@
+import pygame
+import pyperclip
+import time
+from Crypto.Cipher import AES
+import hashlib
+import os
+
+pygame.init()
+
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 700
+QWERTY_FILENAME = "qwerty.txt"
+MAGIC = "qwertyuiopasdfghjklzxcvbnm"
+deleted_entries = []
+
+
+def collide_rect(rect, pos):
+    return pos[0] > rect[0] and pos[0] < rect[0] + rect[2] and pos[1] > rect[1] and pos[1] < rect[1] + rect[3]
+
+
+current_page = "pwd"
+
+
+def encrypt(text: str, pwd: str):
+    salt = os.urandom(AES.block_size)
+    key = hashlib.sha256(salt + pwd.encode('utf-8')).digest()
+    iv = os.urandom(AES.block_size)
+    cipher = AES.new(key, AES.MODE_CFB, iv=iv)
+    return salt + iv + cipher.encrypt(text.encode('utf-8'))
+
+
+def decrypt(data: bytes, pwd: str):
+    salt = data[:AES.block_size]
+    key = hashlib.sha256(salt + pwd.encode('utf-8')).digest()
+    iv = data[AES.block_size:2 * AES.block_size]
+    ciphertext = data[2 * AES.block_size:]
+    decrypt_cipher = AES.new(key, AES.MODE_CFB, iv=iv)
+    return decrypt_cipher.decrypt(ciphertext).decode('utf-8')
+
+
+actual_pwd = ""
+
+
+def goto_main_page():
+    global current_page, pwd_page, main_page, actual_pwd
+    pwd = pwd_page.input.text
+    enc_file = open(QWERTY_FILENAME, 'rb')
+    data = enc_file.read()
+    enc_file.close()
+    try:
+        decrypted = decrypt(data, pwd)
+    except:
+        pwd_page.input.text = ""
+        pwd_page.entered_wrong_pwd = True
+        return
+    lines = decrypted.split('\n')
+    if lines[0] != MAGIC:
+        pwd_page.input.text = ""
+        pwd_page.entered_wrong_pwd = True
+        return
+    actual_pwd = pwd
+    entries = []
+    for i in range(1, len(lines), 2):
+        if i + 1 >= len(lines):
+            break
+        entries.append((lines[i], lines[i + 1]))
+    main_page.entry_list = EntryList((10, 10), SCREEN_WIDTH - 20, entries)
+    current_page = "main"
+
+
+def focus_input_2():
+    global change_pwd_page
+    change_pwd_page.input1.is_focused = False
+    change_pwd_page.input1.editing = False
+    change_pwd_page.input2.is_focused = True
+
+
+def change_password():
+    global change_pwd_page, current_page, actual_pwd
+    pwd1 = change_pwd_page.input1.text
+    pwd2 = change_pwd_page.input2.text
+    if pwd1 != pwd2:
+        change_pwd_page.pwd_mismatched = True
+        return
+    if pwd1 == "":
+        return
+    actual_pwd = pwd1
+    change_pwd_page.input1.text = ""
+    change_pwd_page.input2.text = ""
+    change_pwd_page.input1.is_focused = True
+    change_pwd_page.input2.is_focused = False
+    current_page = "main"
+
+
+def goto_change_pwd_page():
+    global current_page
+    current_page = "change_pwd"
+
+
+def goto_main_page_without_pwd():
+    global current_page, change_pwd_page
+    current_page = "main"
+    change_pwd_page.input1.text = ""
+    change_pwd_page.input2.text = ""
+    change_pwd_page.input1.is_focused = True
+    change_pwd_page.input2.is_focused = False
+
+
+def save_data():
+    global main_page, actual_pwd
+    if actual_pwd == "":
+        return
+    text = MAGIC + '\n' + main_page.entry_list.get_text()
+    enc_data = encrypt(text, actual_pwd)
+    with open(QWERTY_FILENAME, 'wb') as qwerty_file:
+        qwerty_file.write(enc_data)
+
+
+def goto_pwd():
+    global current_page
+    current_page = "pwd"
+
+
+try:
+    file = open(QWERTY_FILENAME, "r")
+    file.close()
+except FileNotFoundError:
+    qwertfile = open(QWERTY_FILENAME, "wb")
+    init_data = MAGIC + '\n' + 'it\n' + 'works\n'
+    pwd = "qwerty"
+    qwertfile.write(encrypt(init_data, pwd))
+    qwertfile.close()
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("qwerty")
+pygame.display.set_icon(pygame.image.load("qwerty.png"))
+
+font = pygame.font.Font("PixelOperator8.ttf", 16)
+
+
+class TextInput:
+
+    def __init__(self, pos, width, height, text="", alt_text="", onEnter=None, hidden=False, hidden_unless_focused=False, on_navigation=None):
+        self.text = text
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.is_focused = False
+        self.editing = False
+        self.hidden = hidden
+        self.hidden_unless_focused = hidden_unless_focused
+        self.on_navigation = on_navigation
+        self.default_text = font.render("<lotta text>", False, (200, 200, 200))
+        self.alt_text = alt_text
+        self.alt_text_rendered = font.render(alt_text, False, (120, 120, 120))
+        self.onEnter = onEnter
+        self.color = (20, 20, 20)
+        self.is_cursor_visible = True
+        self.cursor_blink_timer = 0
+        self.cursor_blink_time = 0.3
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
+        if self.hidden or (self.hidden_unless_focused and not self.is_focused):
+            text = font.render("*" * len(self.text), False, (255, 255, 255))
+        else:
+            text = font.render(self.text, False, (255, 255, 255))
+        if text.get_width() <= self.width or self.editing:
+            if self.text != "":
+                screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
+            elif not self.editing:
+                screen.blit(self.alt_text_rendered, (self.pos[0] + self.width / 2 - self.alt_text_rendered.get_width() / 2,
+                                                     self.pos[1] + self.height / 2 - self.alt_text_rendered.get_height() / 2))
+            if self.editing and self.is_cursor_visible:
+                pygame.draw.rect(
+                    screen, (255, 255, 255),
+                    (self.pos[0] + self.width / 2 + text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2, 10, text.get_height()))
+        else:
+            screen.blit(self.default_text,
+                        (self.pos[0] + self.width / 2 - self.default_text.get_width() / 2, self.pos[1] + self.height / 2 - self.default_text.get_height() / 2))
+
+    def update_dims(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        mouse_pos = mouseState[0]
+        # mouse_pressed = mouseState[1]
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if self.is_focused:
+                    if self.editing:
+                        if event.key == pygame.K_BACKSPACE or event.key == pygame.K_DELETE or (keys[pygame.K_LCTRL] and event.key == pygame.K_w):
+                            if keys[pygame.K_LCTRL]:
+                                while len(self.text) and self.text[-1] != " ":
+                                    self.text = self.text[:-1]
+                            if len(self.text):
+                                self.text = self.text[:-1]
+                        elif event.key == pygame.K_ESCAPE or (event.key == pygame.K_c and keys[pygame.K_LCTRL]):
+                            self.editing = False
+                        elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
+                            self.text += pyperclip.paste()
+                        elif event.key == pygame.K_RETURN:
+                            self.editing = False
+                            if self.onEnter:
+                                self.onEnter()
+                        else:
+                            self.text += event.unicode
+                    elif event.key == pygame.K_c and keys[pygame.K_LCTRL]:
+                        pyperclip.copy(self.text)
+                    elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
+                        self.text = pyperclip.paste()
+                    elif event.key == pygame.K_RETURN:
+                        self.editing = True
+                    elif event.key == pygame.K_UP or event.key == pygame.K_k:
+                        if self.on_navigation:
+                            self.on_navigation(0)
+                    elif event.key == pygame.K_LEFT or event.key == pygame.K_h or event.key == pygame.K_b:
+                        if self.on_navigation:
+                            self.on_navigation(1)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_j:
+                        if self.on_navigation:
+                            self.on_navigation(2)
+                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_l or event.key == pygame.K_TAB or event.key == pygame.K_e:
+                        if self.on_navigation:
+                            self.on_navigation(3)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if collide_rect((self.pos[0], self.pos[1], self.width, self.height), event.pos):
+                    if self.is_focused:
+                        self.editing = True
+                    else:
+                        self.is_focused = True
+                else:
+                    self.is_focused = False
+                    self.editing = False
+
+        if self.is_focused:
+            self.color = (50, 50, 50)
+        elif collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos):
+            self.color = (30, 30, 30)
+        else:
+            self.color = (20, 20, 20)
+
+        self.cursor_blink_timer += delta
+        if self.cursor_blink_timer > self.cursor_blink_time:
+            self.cursor_blink_timer = 0
+            self.is_cursor_visible = not self.is_cursor_visible
+
+
+class Button:
+
+    def __init__(self, pos, width, height, text="", onClick=None):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.text = text
+        self.onClick = onClick
+        self.prev_mouse_state = True
+        self.color = (100, 100, 100)
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
+        if self.text != "":
+            text = font.render(self.text, False, (255, 255, 255))
+            screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
+
+    def update_dims(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+
+    def update(self, mouseState):
+        mouse_pos = mouseState[0]
+        mouse_clicked = mouseState[1]
+        colliding = collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos)
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and colliding:
+                if self.onClick:
+                    self.onClick()
+        if colliding:
+            if mouse_clicked:
+                self.color = (120, 120, 120)
+            else:
+                self.color = (100, 100, 100)
+        else:
+            self.color = (70, 70, 70)
+        self.prev_mouse_state = mouse_pressed
+
+
+class Entry:
+
+    def __init__(self, pos, width, height, key="", val="", on_navigation=None):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.deleted = False
+        self.on_navigation = on_navigation
+        kv_width = self.width - self.height
+        self.key_inp = TextInput(self.pos, kv_width / 2 - 3, self.height, text=key, alt_text="key", on_navigation=self.on_navigation)
+        self.val_inp = TextInput((self.pos[0] + kv_width / 2 + 3, self.pos[1]), kv_width / 2 - 3, self.height, text=val, alt_text="value", hidden_unless_focused=True, on_navigation=self.on_navigation)
+        self.del_button = Button((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height, onClick=self.delete_self, text="X")
+
+    def draw(self, screen):
+        self.key_inp.draw(screen)
+        self.val_inp.draw(screen)
+        self.del_button.draw(screen)
+
+    def update_dims(self, pos, width, height, index=0):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.index = index
+        kv_width = self.width - self.height
+        self.key_inp.update_dims(self.pos, kv_width / 2 - 3, self.height)
+        self.val_inp.update_dims((self.pos[0] + kv_width / 2 + 3, self.pos[1]), kv_width / 2 - 3, self.height)
+        self.del_button.update_dims((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height)
+
+    def delete_self(self):
+        self.deleted = True
+        deleted_entries.append((self.key_inp.text, self.val_inp.text))
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        self.key_inp.update(keys, mouseState, delta=delta, events=events)
+        self.val_inp.update(keys, mouseState, delta=delta, events=events)
+        self.del_button.update(mouseState)
+
+
+class EntryList:
+
+    def __init__(self, pos, width, entries=[]):
+        self.pos = pos
+        self.width = width
+        self.entry_height = 50
+        self.spacing = 60
+        self.curr_focused = -1
+        self.entry_list = [
+            Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue) for i in range(len(entries))
+        ]
+        self.add_button = Button((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, 50, "+", onClick=self.add_entry)
+        self.navigate_queue = [0, ]
+
+    def draw(self, screen):
+        for entry in self.entry_list:
+            entry.draw(screen)
+        self.add_button.draw(screen)
+
+    def update_dims(self, pos, width):
+        self.pos = pos
+        self.width = width
+        for i in range(len(self.entry_list)):
+            self.entry_list[i].update_dims((self.pos[0], self.pos[1] + i * self.spacing), self.width, self.entry_height, index=i)
+        self.add_button.update_dims((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, self.entry_height)
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        for i in range(len(self.entry_list)):
+            if self.entry_list[i].deleted:
+                self.delete_entry(i)
+                break
+        self.curr_focused = -1
+        i = 0
+        for entry in self.entry_list:
+            entry.update(keys, mouseState, delta, events)
+            if entry.key_inp.is_focused:
+                self.curr_focused = i
+            elif entry.val_inp.is_focused:
+                self.curr_focused = i+1
+            i += 2
+        if (len(self.entry_list) + 2) * self.spacing > SCREEN_HEIGHT:
+            self.spacing -= 1
+            if self.spacing <= self.entry_height + 2:
+                self.entry_height -= 1
+        self.add_button.update(mouseState)
+        while len(self.navigate_queue):
+            dir = self.navigate_queue.pop()
+            self.navigate(dir)
+
+    def navigate_enqueue(self, dir):
+        self.navigate_queue.append(dir)
+
+    def navigate(self, dir):
+        if self.curr_focused == -1:
+            if len(self.entry_list):
+                self.entry_list[0].key_inp.is_focused = True
+            return
+        focused_ind = self.curr_focused//2
+        is_key = not self.curr_focused%2
+        if dir==0:
+            if not focused_ind:
+                return
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[focused_ind - 1].key_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[focused_ind - 1].val_inp.is_focused = True
+        elif dir==2:
+            if focused_ind == len(self.entry_list)-1:
+                return
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[focused_ind + 1].key_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[focused_ind + 1].val_inp.is_focused = True
+        elif dir==1:
+            if focused_ind == 0 and is_key:
+                return
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[focused_ind - 1].val_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[focused_ind].key_inp.is_focused = True
+        elif dir==3:
+            if focused_ind == len(self.entry_list)-1 and not is_key:
+                return
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[focused_ind].val_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[focused_ind + 1].key_inp.is_focused = True
+
+    def add_entry(self, entry=("", "")):
+        self.entry_list.append(Entry((0, 0), 0, 0, key=entry[0], val=entry[1], on_navigation=self.navigate_enqueue))
+        self.update_dims(self.pos, self.width)
+
+    def delete_entry(self, i):
+        self.entry_list.pop(i)
+        self.update_dims(self.pos, self.width)
+
+    def get_text(self):
+        text = ""
+        for entry in self.entry_list:
+            key = entry.key_inp.text
+            val = entry.val_inp.text
+            if key or val:
+                text += key + '\n'
+                text += val + '\n'
+        return text
+
+
+class MainPage:
+
+    def __init__(self, entries=[]):
+        self.entry_list = EntryList((10, 10), SCREEN_WIDTH - 20, entries)
+
+    def draw(self, screen):
+        self.entry_list.draw(screen)
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if keys[pygame.K_LCTRL] and event.key == pygame.K_z and len(deleted_entries):
+                    entry = deleted_entries.pop()
+                    self.entry_list.add_entry(entry=entry)
+                if keys[pygame.K_LCTRL] and event.key == pygame.K_p:
+                    goto_change_pwd_page()
+                if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
+                    self.entry_list.navigate_enqueue(0)
+
+        self.entry_list.update(keys, mouseState, delta, events)
+
+
+class PasswordPage:
+
+    def __init__(self):
+        self.input_width = 600
+        self.input_height = 50
+        self.entered_wrong_pwd = False
+        self.wrong_pwd_message = font.render("wrong password", False, (200, 200, 200))
+        self.input = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - self.input_height / 2),
+                               self.input_width,
+                               self.input_height,
+                               alt_text="enter pwd",
+                               onEnter=goto_main_page,
+                               hidden=True)
+        self.input.is_focused = True
+
+    def draw(self, screen):
+        self.input.draw(screen)
+        if self.entered_wrong_pwd:
+            screen.blit(self.wrong_pwd_message,
+                        (SCREEN_WIDTH / 2 - self.wrong_pwd_message.get_width() / 2, SCREEN_HEIGHT / 3 - self.wrong_pwd_message.get_height() / 2))
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        self.input.update(keys, mouseState, delta, events)
+
+
+class ChangePasswordPage:
+
+    def __init__(self):
+        self.input_width = 600
+        self.input_height = 50
+        self.pwd_mismatched = False
+        self.pwd_not_match_msg = font.render("passwords don't match", False, (200, 200, 200))
+        self.input1 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - 1.5 * self.input_height),
+                                self.input_width,
+                                self.input_height,
+                                alt_text="enter pwd",
+                                onEnter=focus_input_2,
+                                hidden=True)
+        self.input2 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
+                                self.input_width,
+                                self.input_height,
+                                alt_text="re-enter pwd",
+                                hidden=True)
+        self.input1.is_focused = True
+        self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=change_password)
+        self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=goto_main_page_without_pwd)
+
+    def draw(self, screen):
+        self.input1.draw(screen)
+        self.input2.draw(screen)
+        self.change_button.draw(screen)
+        self.cancel_button.draw(screen)
+        if self.pwd_mismatched:
+            screen.blit(self.pwd_not_match_msg,
+                        (SCREEN_WIDTH / 2 - self.pwd_not_match_msg.get_width() / 2, SCREEN_HEIGHT / 4 - self.pwd_not_match_msg.get_height() / 2))
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        self.input1.update(keys, mouseState, delta, events)
+        self.input2.update(keys, mouseState, delta, events)
+        self.change_button.update(mouseState)
+        self.cancel_button.update(mouseState)
+
+
+main_page = MainPage()
+pwd_page = PasswordPage()
+change_pwd_page = ChangePasswordPage()
+
+running = True
+prev_time = time.time_ns()
+while running:
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.QUIT:
+            running = False
+            save_data()
+
+    keys = pygame.key.get_pressed()
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_pressed = pygame.mouse.get_pressed()[0]
+    mouseState = (mouse_pos, mouse_pressed)
+
+    curr_time = time.time_ns()
+    delta = (curr_time - prev_time) / 1e9
+    prev_time = curr_time
+    if current_page == "pwd":
+        pwd_page.update(keys, mouseState, delta, events)
+        pwd_page.draw(screen)
+    elif current_page == "main":
+        main_page.update(keys, mouseState, delta, events)
+        main_page.draw(screen)
+    elif current_page == "change_pwd":
+        change_pwd_page.update(keys, mouseState, delta, events)
+        change_pwd_page.draw(screen)
+
+    pygame.display.update()
+    screen.fill((0, 0, 0))
