@@ -140,7 +140,7 @@ font = pygame.font.Font("PixelOperator8.ttf", 16)
 
 class TextInput:
 
-    def __init__(self, pos, width, height, text="", alt_text="", onEnter=None, hidden=False, hidden_unless_focused=False, on_navigation=None):
+    def __init__(self, pos, width, height, text="", alt_text="", onEnter=None, hidden=False, hidden_unless_focused=False, on_navigation=None, only_edit_mode=False):
         self.text = text
         self.pos = pos
         self.width = width
@@ -149,6 +149,7 @@ class TextInput:
         self.editing = False
         self.hidden = hidden
         self.hidden_unless_focused = hidden_unless_focused
+        self.only_edit_mode = only_edit_mode
         self.on_navigation = on_navigation
         self.default_text = font.render("<lotta text>", False, (200, 200, 200))
         self.alt_text = alt_text
@@ -168,10 +169,10 @@ class TextInput:
         if text.get_width() <= self.width or self.editing:
             if self.text != "":
                 screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
-            elif not self.editing:
+            elif not self.editing or self.only_edit_mode:
                 screen.blit(self.alt_text_rendered, (self.pos[0] + self.width / 2 - self.alt_text_rendered.get_width() / 2,
                                                      self.pos[1] + self.height / 2 - self.alt_text_rendered.get_height() / 2))
-            if self.editing and self.is_cursor_visible:
+            if self.editing and self.is_cursor_visible and (not self.only_edit_mode or not self.text == ""):
                 pygame.draw.rect(
                     screen, (255, 255, 255),
                     (self.pos[0] + self.width / 2 + text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2, 10, text.get_height()))
@@ -187,6 +188,8 @@ class TextInput:
     def update(self, keys, mouseState, delta=0.0, events=[]):
         mouse_pos = mouseState[0]
         # mouse_pressed = mouseState[1]
+        if self.is_focused and self.only_edit_mode:
+            self.editing = True
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if self.is_focused:
@@ -534,8 +537,10 @@ class MainPage:
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
             if event.type == pygame.MOUSEWHEEL:
-                if len(self.entry_list.entry_list) * self.entry_list.spacing > SCREEN_HEIGHT:
+                if (len(self.entry_list.entry_list) + 1) * self.entry_list.spacing > SCREEN_HEIGHT:
                     self.entry_list.y_val += event.y * 10000 * delta
+                else:
+                    self.entry_list.y_val = 10
                 if self.entry_list.y_val > 10:
                     self.entry_list.y_val = 10
                 if self.entry_list.y_val < -(len(self.entry_list.entry_list)) * self.entry_list.spacing:
@@ -557,6 +562,7 @@ class PasswordPage:
                                self.input_height,
                                alt_text="enter pwd",
                                onEnter=goto_main_page,
+                               only_edit_mode=True,
                                hidden=True)
         self.input.is_focused = True
 
