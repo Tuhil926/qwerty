@@ -207,12 +207,20 @@ class TextInput:
                                 self.onEnter()
                         else:
                             self.text += event.unicode
+                        if self.on_navigation:
+                            self.on_navigation(-1)
                     elif event.key == pygame.K_c and keys[pygame.K_LCTRL]:
                         pyperclip.copy(self.text)
+                        if self.on_navigation:
+                            self.on_navigation(-1)
                     elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
                         self.text = pyperclip.paste()
+                        if self.on_navigation:
+                            self.on_navigation(-1)
                     elif event.key == pygame.K_RETURN:
                         self.editing = True
+                        if self.on_navigation:
+                            self.on_navigation(-1)
                     elif event.key == pygame.K_UP or event.key == pygame.K_k:
                         if self.on_navigation:
                             self.on_navigation(0)
@@ -225,12 +233,20 @@ class TextInput:
                     elif event.key == pygame.K_RIGHT or event.key == pygame.K_l or event.key == pygame.K_TAB or event.key == pygame.K_e:
                         if self.on_navigation:
                             self.on_navigation(3)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+                    elif event.key == pygame.K_d and keys[pygame.K_LCTRL]:
+                        if self.on_navigation:
+                            self.on_navigation(4)
+                    elif event.key == pygame.K_u and keys[pygame.K_LCTRL]:
+                        if self.on_navigation:
+                            self.on_navigation(5)
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if collide_rect((self.pos[0], self.pos[1], self.width, self.height), event.pos):
                     if self.is_focused:
                         self.editing = True
                     else:
                         self.is_focused = True
+                    if self.on_navigation:
+                        self.on_navigation(-1)
                 else:
                     self.is_focused = False
                     self.editing = False
@@ -275,7 +291,7 @@ class Button:
         mouse_clicked = mouseState[1]
         colliding = collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos)
         for event in events:
-            if event.type == pygame.MOUSEBUTTONDOWN and colliding:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and colliding:
                 if self.onClick:
                     self.onClick()
         if colliding:
@@ -329,7 +345,8 @@ class Entry:
 class EntryList:
 
     def __init__(self, pos, width, entries=[]):
-        self.pos = pos
+        self.pos = [pos[0], pos[1]]
+        self.y_val = pos[1]
         self.width = width
         self.entry_height = 50
         self.spacing = 60
@@ -366,14 +383,17 @@ class EntryList:
             elif entry.val_inp.is_focused:
                 self.curr_focused = i+1
             i += 2
-        if (len(self.entry_list) + 2) * self.spacing > SCREEN_HEIGHT:
-            self.spacing -= 1
-            if self.spacing <= self.entry_height + 2:
-                self.entry_height -= 1
+        # if (len(self.entry_list) + 2) * self.spacing > SCREEN_HEIGHT:
+        #     self.spacing -= 1
+        #     if self.spacing <= self.entry_height + 2:
+        #         self.entry_height -= 1
         self.add_button.update(mouseState)
         while len(self.navigate_queue):
             dir = self.navigate_queue.pop()
             self.navigate(dir)
+        if abs(self.pos[1] - self.y_val) > 0.01:
+            self.pos[1] += 10*(self.y_val - self.pos[1])*delta
+            self.update_dims(self.pos, self.width)
 
     def navigate_enqueue(self, dir):
         self.navigate_queue.append(dir)
@@ -394,6 +414,7 @@ class EntryList:
             else:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind - 1].val_inp.is_focused = True
+            focused_ind -= 1
         elif dir==2:
             if focused_ind == len(self.entry_list)-1:
                 return
@@ -403,12 +424,14 @@ class EntryList:
             else:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind + 1].val_inp.is_focused = True
+            focused_ind += 1
         elif dir==1:
             if focused_ind == 0 and is_key:
                 return
             if is_key:
                 self.entry_list[focused_ind].key_inp.is_focused = False
                 self.entry_list[focused_ind - 1].val_inp.is_focused = True
+                focused_ind -= 1
             else:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind].key_inp.is_focused = True
@@ -421,6 +444,50 @@ class EntryList:
             else:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[focused_ind + 1].key_inp.is_focused = True
+                focused_ind += 1
+        elif dir==4:
+            if not len(self.entry_list):
+                return
+            new_ind = min(len(self.entry_list)-1, focused_ind + 6)
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[new_ind].key_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[new_ind].val_inp.is_focused = True
+            focused_ind = new_ind
+        elif dir==5:
+            if not len(self.entry_list):
+                return
+            new_ind = max(0, focused_ind - 6)
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[new_ind].key_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[new_ind].val_inp.is_focused = True
+            focused_ind = new_ind
+        elif dir==6:
+            if not len(self.entry_list):
+                return
+            new_ind = len(self.entry_list) - 1
+            if is_key:
+                self.entry_list[focused_ind].key_inp.is_focused = False
+                self.entry_list[new_ind].key_inp.is_focused = True
+            else:
+                self.entry_list[focused_ind].val_inp.is_focused = False
+                self.entry_list[new_ind].key_inp.is_focused = True
+            focused_ind = new_ind
+        if focused_ind == len(self.entry_list)-1:
+            self.y_val = min(SCREEN_HEIGHT - self.spacing - (focused_ind + 1)*self.spacing, 10)
+            self.update_dims(self.pos, self.width)
+        if self.y_val + (focused_ind + 1)*self.spacing > SCREEN_HEIGHT:
+            self.y_val -= self.y_val + (focused_ind + 1)*self.spacing - SCREEN_HEIGHT
+            self.update_dims(self.pos, self.width)
+        if self.y_val + focused_ind*self.spacing < 10:
+            self.y_val = 10 - focused_ind*self.spacing
+            self.update_dims(self.pos, self.width)
+
 
     def add_entry(self, entry=("", "")):
         self.entry_list.append(Entry((0, 0), 0, 0, key=entry[0], val=entry[1], on_navigation=self.navigate_enqueue))
@@ -457,8 +524,19 @@ class MainPage:
                     self.entry_list.add_entry(entry=entry)
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_p:
                     goto_change_pwd_page()
+                if keys[pygame.K_LCTRL] and event.key == pygame.K_a:
+                    self.entry_list.add_entry()
+                    self.entry_list.navigate_enqueue(6)
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
+            if event.type == pygame.MOUSEWHEEL:
+                if len(self.entry_list.entry_list)*self.entry_list.spacing > SCREEN_HEIGHT:
+                    self.entry_list.y_val += event.y*10000*delta
+                if self.entry_list.y_val > 10:
+                    self.entry_list.y_val = 10
+                if self.entry_list.y_val < -(len(self.entry_list.entry_list))*self.entry_list.spacing:
+                    self.entry_list.y_val = -(len(self.entry_list.entry_list))*self.entry_list.spacing
+                self.entry_list.update_dims(self.entry_list.pos, self.entry_list.width)
 
         self.entry_list.update(keys, mouseState, delta, events)
 
