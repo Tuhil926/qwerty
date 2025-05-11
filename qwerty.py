@@ -64,8 +64,20 @@ def goto_main_page():
         if i + 1 >= len(lines):
             break
         entries.append((lines[i], lines[i + 1]))
-    main_page.entry_list = EntryList((10, main_page.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=main_page.entry_list_default_y_offset)
-    main_page.searchbar = TextInput((10, 10), SCREEN_WIDTH - 20, 50, alt_text="search", onEnter=None, onInput=main_page.entry_list.set_filter_text, only_edit_mode=True)
+    main_page.entry_list = EntryList((10, main_page.entry_list_default_y_offset),
+                                     SCREEN_WIDTH - 20,
+                                     entries,
+                                     default_y_offset=main_page.entry_list_default_y_offset,
+                                     focus_on_searchbar=main_page.focus_on_searchbar,
+                                     unfocus_on_searchbar=main_page.unfocus_on_searchbar)
+    main_page.searchbar = TextInput((10, 10),
+                                    SCREEN_WIDTH - 20,
+                                    50,
+                                    alt_text="search",
+                                    onEnter=None,
+                                    onInput=main_page.entry_list.set_filter_text,
+                                    only_edit_mode=True,
+                                    clear_on_escape=True)
 
     current_page = "main"
 
@@ -142,7 +154,19 @@ font = pygame.font.Font("PixelOperator8.ttf", 16)
 
 class TextInput:
 
-    def __init__(self, pos, width, height, text="", alt_text="", onEnter=None, onInput=None, hidden=False, hidden_unless_focused=False, on_navigation=None, only_edit_mode=False):
+    def __init__(self,
+                 pos,
+                 width,
+                 height,
+                 text="",
+                 alt_text="",
+                 onEnter=None,
+                 onInput=None,
+                 hidden=False,
+                 hidden_unless_focused=False,
+                 on_navigation=None,
+                 only_edit_mode=False,
+                 clear_on_escape=False):
         self.text = text
         self.pos = pos
         self.width = width
@@ -153,6 +177,7 @@ class TextInput:
         self.hidden_unless_focused = hidden_unless_focused
         self.only_edit_mode = only_edit_mode
         self.on_navigation = on_navigation
+        self.clear_on_escape = clear_on_escape
         self.default_text = font.render("<lotta text>", False, (200, 200, 200))
         self.alt_text = alt_text
         self.alt_text_rendered = font.render(alt_text, False, (120, 120, 120))
@@ -193,6 +218,8 @@ class TextInput:
         # mouse_pressed = mouseState[1]
         if self.is_focused and self.only_edit_mode:
             self.editing = True
+        elif not self.is_focused:
+            self.editing = False
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if self.is_focused:
@@ -205,6 +232,10 @@ class TextInput:
                                 self.text = self.text[:-1]
                         elif event.key == pygame.K_ESCAPE or (event.key == pygame.K_c and keys[pygame.K_LCTRL]):
                             self.editing = False
+                            if self.only_edit_mode:
+                                self.is_focused = False
+                                if self.clear_on_escape:
+                                    self.text = ""
                         elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
                             self.text += pyperclip.paste()
                         elif event.key == pygame.K_RETURN:
@@ -358,7 +389,7 @@ class Entry:
 
 class EntryList:
 
-    def __init__(self, pos, width, entries=[], default_y_offset=10):
+    def __init__(self, pos, width, entries=[], default_y_offset=10, focus_on_searchbar=None, unfocus_on_searchbar=None):
         self.pos = [pos[0], pos[1]]
         self.y_val = pos[1]
         self.default_y_offset = default_y_offset
@@ -367,6 +398,8 @@ class EntryList:
         self.spacing = 60
         self.curr_focused = -1
         self.filter_text = ""
+        self.focus_on_searchbar = focus_on_searchbar
+        self.unfocus_on_searchbar = unfocus_on_searchbar
         self.entry_list = [
             Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue)
             for i in range(len(entries))
@@ -422,8 +455,15 @@ class EntryList:
             if len(self.entry_list):
                 if dir == 6:
                     self.entry_list[-1].key_inp.is_focused = True
+                    if self.unfocus_on_searchbar:
+                        self.unfocus_on_searchbar()
+                elif dir == 7:
+                    if self.focus_on_searchbar:
+                        self.focus_on_searchbar()
                 else:
                     self.entry_list[0].key_inp.is_focused = True
+                    if self.unfocus_on_searchbar:
+                        self.unfocus_on_searchbar()
             return
         focused_ind = self.curr_focused // 2
         is_key = not self.curr_focused % 2
@@ -500,6 +540,12 @@ class EntryList:
                 self.entry_list[focused_ind].val_inp.is_focused = False
                 self.entry_list[new_ind].key_inp.is_focused = True
             focused_ind = new_ind
+        elif dir == 7:
+            self.entry_list[focused_ind].key_inp.is_focused = False
+            self.entry_list[focused_ind].val_inp.is_focused = False
+            if self.focus_on_searchbar:
+                self.focus_on_searchbar()
+
         if focused_ind == len(self.entry_list) - 1:
             self.y_val = min(SCREEN_HEIGHT - self.spacing - (focused_ind + 1) * self.spacing, self.default_y_offset)
             self.update_dims(self.pos, self.width)
@@ -534,7 +580,6 @@ class MainPage:
     def __init__(self, entries=[]):
         self.entry_list_default_y_offset = 70
         self.entry_list = EntryList((10, self.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=self.entry_list_default_y_offset)
-        # self.searchbar = TextInput((10, 10), SCREEN_WIDTH - 20, 50, alt_text="search", onEnter=None, onInput=self.entry_list.set_filter_text)
         self.searchbar = TextInput((0, 0), 0, 0)
 
     def draw(self, screen):
@@ -555,18 +600,28 @@ class MainPage:
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
             if event.type == pygame.MOUSEWHEEL:
-                if (len(self.entry_list.entry_list) + 1) * self.entry_list.spacing > SCREEN_HEIGHT:
+                if (len(self.entry_list.entry_list) + 2) * self.entry_list.spacing > SCREEN_HEIGHT:
                     self.entry_list.y_val += event.y * 10000 * delta
+                    if self.entry_list.y_val > self.entry_list_default_y_offset:
+                        self.entry_list.y_val = self.entry_list_default_y_offset
+                    if self.entry_list.y_val < -(len(self.entry_list.entry_list)-2) * self.entry_list.spacing:
+                        self.entry_list.y_val = -(len(self.entry_list.entry_list)-2) * self.entry_list.spacing
                 else:
                     self.entry_list.y_val = self.entry_list_default_y_offset
-                if self.entry_list.y_val > self.entry_list_default_y_offset:
-                    self.entry_list.y_val = self.entry_list_default_y_offset
-                if self.entry_list.y_val < -(len(self.entry_list.entry_list)) * self.entry_list.spacing:
-                    self.entry_list.y_val = -(len(self.entry_list.entry_list)) * self.entry_list.spacing
                 self.entry_list.update_dims(self.entry_list.pos, self.entry_list.width)
 
         self.entry_list.update(keys, mouseState, delta, events)
         self.searchbar.update(keys, mouseState, delta, events)
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if keys[pygame.K_LCTRL] and event.key == pygame.K_SLASH:
+                    self.entry_list.navigate_enqueue(7)
+
+    def focus_on_searchbar(self):
+        self.searchbar.is_focused = True
+
+    def unfocus_on_searchbar(self):
+        self.searchbar.is_focused = False
 
 
 class PasswordPage:
@@ -666,4 +721,4 @@ while running:
 
     pygame.display.update()
     screen.fill((0, 0, 0))
-    time.sleep(1/256)
+    time.sleep(1 / 256)
