@@ -1,7 +1,0 @@
-#!/bin/bash
-cd ~/.config/qwerty
-if [ "$1" = "cli" ]; then
-    python3 qwerty_cli.py
-else
-    python3 qwerty.py
-fi

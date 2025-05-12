@@ -23,7 +23,7 @@ while True:
     print("6. search entry")
     print("7. change master password")
     print("8. save and exit")
-    choice1 = input(">")
+    choice1 = input("> ")
     if choice1 == "1":
         num = input("Enter the entry number: ")
         try:

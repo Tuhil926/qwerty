@@ -2,7 +2,9 @@
 Definitely not a password manager that encrypts yours passwords with AES.
 
 ## How to install:
-- You can just run the installation script:
+- Clone the repository and make sure you have python installed.
+- If you want to change the defaults for qwerty gets installed and what python version it uses, or whether or not you want to also install the necessary modules, you can change the required variables at the top of `install.sh`.
+- Then, run the installation script:
 `./installer.sh`
 - This will ask you for you sudo password for the final step (to copy the launcher script to /usr/bin)
 - Then, you can run the gui program with the `qwerty` command, and the cli program with `qwerty cli`
