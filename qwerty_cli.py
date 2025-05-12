@@ -24,14 +24,21 @@ while True:
     print("7. change master password")
     print("8. save and exit")
     choice1 = input("> ")
-    if choice1 == "1":
+    if choice1 == "1" or choice1 == "42":
         num = input("Enter the entry number: ")
         try:
             num = int(num) - 1
-            pyperclip.copy(entries[num][1])
-            print("value for", entries[num][0], "copied to clipboard")
+            if choice1 == "1":
+                pyperclip.copy(entries[num][1])
+                print("value for", entries[num][0], "copied to clipboard")
+            else:
+                print(entries[num][1])
+        except IndexError:
+            print("Invalid index")
+        except ValueError:
+            print("Please enter an integer")
         except:
-            print("Invalid")
+            print("Could not copy value.")
     elif choice1 == "2":
         num = input("Enter the entry number: ")
         try:
@@ -39,6 +46,10 @@ while True:
             new_key = input("Enter the new key: ")
             entries[num] = (new_key, entries[num][1])
             print("Success")
+        except IndexError:
+            print("Invalid index")
+        except ValueError:
+            print("Please enter an integer")
         except:
             print("Invalid")
     elif choice1 == "3":
@@ -52,6 +63,10 @@ while True:
             else:
                 entries[num] = (entries[num][0], pwd1)
                 print("Success")
+        except IndexError:
+            print("Invalid index")
+        except ValueError:
+            print("Please enter an integer")
         except:
             print("Invalid")
     elif choice1 == "4":
@@ -73,6 +88,10 @@ while True:
                 print("Deleted entry for", deleted[0])
             else:
                 print("Did not delete anything")
+        except IndexError:
+            print("Invalid index")
+        except ValueError:
+            print("Please enter an integer")
         except:
             print("Invalid")
     elif choice1 == "6":

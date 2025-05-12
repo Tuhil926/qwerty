@@ -6,6 +6,9 @@ PYTHON="python3"
 # put the place where you want to install qwerty here
 INSTALL_DIR="$HOME/.config/qwerty"
 
+# default place to put desktop files. you probably don't need to change this
+DESKTOP_FILE_DIR="$HOME/.local/share/applications"
+
 # make this 1 if you want it to also install the necessary python modules
 INSTALL_PYTHON_MODULES=0
 
@@ -38,6 +41,18 @@ else
 fi' > qwerty
 chmod +x qwerty
 sudo cp qwerty /usr/bin
+
+echo '[Desktop Entry]
+Name=qwerty
+Exec=qwerty
+Icon='"$INSTALL_DIR"'/qwerty.png
+Type=Application
+Categories=Utility;
+Terminal=false
+Comment=Definitely not a password manager
+Keywords=qwerty;password;' > qwerty.desktop
+
+cp qwerty.desktop $DESKTOP_FILE_DIR
 
 printf "\n\n"
 echo "qwerty installed successfully! run the command 'qwerty' to start it, or 'qwerty cli' to start the cli.\n"
