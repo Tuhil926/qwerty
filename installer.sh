@@ -18,6 +18,7 @@ cp PixelOperator8.ttf ~/.config/qwerty
 chmod +x qwerty
 sudo cp qwerty /usr/bin
 
-echo "qwerty installed successfully! run the command 'qwerty' to start it.\n"
+echo "\n\n"
+echo "qwerty installed successfully! run the command 'qwerty' to start it, or 'qwerty cli' to start the cli.\n"
 echo "If this is your first time installing the app, the password is 'qwerty'. You can change it by pressing CTRL+P.\n"
 echo "read the given README for further details on how to use.\n"
