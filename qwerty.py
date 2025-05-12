@@ -191,7 +191,7 @@ class TextInput:
                                 if self.clear_on_escape:
                                     self.text = ""
                         elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
-                            self.text += pyperclip.paste()
+                            self.text += pyperclip.paste().replace("\n", " ")
                         elif event.key == pygame.K_RETURN:
                             self.editing = False
                             if self.onEnter:
@@ -207,7 +207,7 @@ class TextInput:
                         if self.on_navigation:
                             self.on_navigation(-1)
                     elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
-                        self.text = pyperclip.paste()
+                        self.text = pyperclip.paste().replace("\n", " ")
                         if self.on_navigation:
                             self.on_navigation(-1)
                     elif event.key == pygame.K_RETURN:
