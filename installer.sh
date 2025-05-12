@@ -11,6 +11,8 @@ pip install pycryptodome
 
 mkdir -p ~/.config/qwerty
 cp qwerty.py ~/.config/qwerty
+cp crypto_ops.py ~/.config/qwerty
+cp qwerty_cli.py ~/.config/qwerty
 cp qwerty.png ~/.config/qwerty
 cp PixelOperator8.ttf ~/.config/qwerty
 chmod +x qwerty

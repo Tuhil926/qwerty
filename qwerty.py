@@ -1,17 +1,15 @@
 #!/bin/python3
+import pyperclip
 import pygame
 import pyperclip
 import time
-from Crypto.Cipher import AES
-import hashlib
-import os
+from crypto_ops import *
 
 pygame.init()
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
-QWERTY_FILENAME = "qwerty.txt"
-MAGIC = "qwertyuiopasdfghjklzxcvbnm"
+
 deleted_entries = []
 
 
@@ -20,51 +18,18 @@ def collide_rect(rect, pos):
 
 
 current_page = "pwd"
-
-
-def encrypt(text: str, pwd: str):
-    salt = os.urandom(AES.block_size)
-    key = hashlib.sha256(salt + pwd.encode('utf-8')).digest()
-    iv = os.urandom(AES.block_size)
-    cipher = AES.new(key, AES.MODE_CFB, iv=iv)
-    return salt + iv + cipher.encrypt(text.encode('utf-8'))
-
-
-def decrypt(data: bytes, pwd: str):
-    salt = data[:AES.block_size]
-    key = hashlib.sha256(salt + pwd.encode('utf-8')).digest()
-    iv = data[AES.block_size:2 * AES.block_size]
-    ciphertext = data[2 * AES.block_size:]
-    decrypt_cipher = AES.new(key, AES.MODE_CFB, iv=iv)
-    return decrypt_cipher.decrypt(ciphertext).decode('utf-8')
-
-
 actual_pwd = ""
 
 
 def goto_main_page():
     global current_page, pwd_page, main_page, actual_pwd
     pwd = pwd_page.input.text
-    enc_file = open(QWERTY_FILENAME, 'rb')
-    data = enc_file.read()
-    enc_file.close()
-    try:
-        decrypted = decrypt(data, pwd)
-    except:
-        pwd_page.input.text = ""
-        pwd_page.entered_wrong_pwd = True
-        return
-    lines = decrypted.split('\n')
-    if lines[0] != MAGIC:
+    entries = try_decrypt(pwd)
+    if not entries:
         pwd_page.input.text = ""
         pwd_page.entered_wrong_pwd = True
         return
     actual_pwd = pwd
-    entries = []
-    for i in range(1, len(lines), 2):
-        if i + 1 >= len(lines):
-            break
-        entries.append((lines[i], lines[i + 1]))
     main_page.entry_list = EntryList((10, main_page.entry_list_default_y_offset),
                                      SCREEN_WIDTH - 20,
                                      entries,
@@ -125,26 +90,14 @@ def save_data():
     global main_page, actual_pwd
     if actual_pwd == "":
         return
-    text = MAGIC + '\n' + main_page.entry_list.get_text()
-    enc_data = encrypt(text, actual_pwd)
-    with open(QWERTY_FILENAME, 'wb') as qwerty_file:
-        qwerty_file.write(enc_data)
+    text = main_page.entry_list.get_text()
+    save_entries(text, actual_pwd)
 
 
 def goto_pwd():
     global current_page
     current_page = "pwd"
 
-
-try:
-    file = open(QWERTY_FILENAME, "r")
-    file.close()
-except FileNotFoundError:
-    qwertfile = open(QWERTY_FILENAME, "wb")
-    init_data = MAGIC + '\n' + 'it\n' + 'works\n'
-    pwd = "qwerty"
-    qwertfile.write(encrypt(init_data, pwd))
-    qwertfile.close()
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("qwerty")
@@ -415,7 +368,7 @@ class EntryList:
 
     def draw(self, screen):
         for entry in self.entry_list:
-            if (self.filter_text == "") or (self.filter_text in entry.key_inp.text):
+            if (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower()):
                 entry.draw(screen)
         self.add_button.draw(screen)
 
@@ -605,8 +558,8 @@ class MainPage:
                     self.entry_list.y_val += event.y * 10000 * delta
                     if self.entry_list.y_val > self.entry_list_default_y_offset:
                         self.entry_list.y_val = self.entry_list_default_y_offset
-                    if self.entry_list.y_val < -(len(self.entry_list.entry_list)-2) * self.entry_list.spacing:
-                        self.entry_list.y_val = -(len(self.entry_list.entry_list)-2) * self.entry_list.spacing
+                    if self.entry_list.y_val < -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing:
+                        self.entry_list.y_val = -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing
                 else:
                     self.entry_list.y_val = self.entry_list_default_y_offset
                 self.entry_list.update_dims(self.entry_list.pos, self.entry_list.width)
