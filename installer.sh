@@ -37,7 +37,7 @@ cp qwerty_cli.py $INSTALL_DIR
 cp qwerty.png $INSTALL_DIR
 cp PixelOperator8.ttf $INSTALL_DIR
 if [ "$USE_GOOGLE_DRIVE" -eq 1 ]; then
-    cp client_secret.py $INSTALL_DIR
+    cp client_secret.json $INSTALL_DIR
 fi
 cp qwerty_oauth.py $INSTALL_DIR
 echo '#!/bin/bash
