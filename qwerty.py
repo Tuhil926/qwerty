@@ -1,9 +1,9 @@
 #!/bin/python3
 import pyperclip
 import pygame
-import pyperclip
 import time
 from crypto_ops import *
+from qwerty_oauth import *
 
 pygame.init()
 
@@ -87,11 +87,16 @@ def goto_main_page_without_pwd():
 
 
 def save_data():
-    global main_page, actual_pwd
+    global main_page, actual_pwd, start_hash, end_hash
     if actual_pwd == "":
         return
     text = main_page.entry_list.get_text()
-    save_entries(text, actual_pwd)
+    if save_entries(text, actual_pwd) or not os.path.exists("token.pickle"):
+        try:
+            drive_service = authenticate()
+            upload_file(drive_service, QWERTY_FILENAME, QWERTY_FILENAME)
+        except:
+            print("Could not backup to drive!")
 
 
 def goto_pwd():
@@ -646,14 +651,22 @@ main_page = MainPage()
 pwd_page = PasswordPage()
 change_pwd_page = ChangePasswordPage()
 
+backing_up_to_drive_text = font.render("Backing up to drive..", False, (255, 255, 255))
+
 running = True
 prev_time = time.time_ns()
 while running:
     events = pygame.event.get()
+    early_break = False
     for event in events:
         if event.type == pygame.QUIT:
             running = False
+            screen.blit(backing_up_to_drive_text, (SCREEN_WIDTH/2 - backing_up_to_drive_text.get_width()/2, SCREEN_HEIGHT/2 - backing_up_to_drive_text.get_height()/2))
+            pygame.display.update()
             save_data()
+            early_break = True
+    if early_break:
+        break
 
     keys = pygame.key.get_pressed()
     mouse_pos = pygame.mouse.get_pos()

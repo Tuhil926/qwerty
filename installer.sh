@@ -12,6 +12,9 @@ DESKTOP_FILE_DIR="$HOME/.local/share/applications"
 # make this 1 if you want it to also install the necessary python modules
 INSTALL_PYTHON_MODULES=0
 
+# make this 1 if you want it to save to google drive as a backup
+USE_GOOGLE_DRIVE=0
+
 echo 'Installing qwerty at '"$INSTALL_DIR"' using '"$PYTHON"' as the python command...'
 
 if [ "$EUID" -eq 0 ]
@@ -24,6 +27,7 @@ if [ "$INSTALL_PYTHON_MODULES" -eq 1 ]; then
     $PYTHON -m pip install pygame
     $PYTHON -m pip install pyperclip
     $PYTHON -m pip install pycryptodome
+    $PYTHON -m pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
 fi
 
 mkdir -p $INSTALL_DIR
@@ -32,6 +36,10 @@ cp crypto_ops.py $INSTALL_DIR
 cp qwerty_cli.py $INSTALL_DIR
 cp qwerty.png $INSTALL_DIR
 cp PixelOperator8.ttf $INSTALL_DIR
+if [ "$INSTALL_PYTHON_MODULES" -eq 1 ]; then
+    cp client_secret.py $INSTALL_DIR
+fi
+cp qwerty_oauth.py $INSTALL_DIR
 echo '#!/bin/bash
 cd '"$INSTALL_DIR"'
 if [ "$1" = "cli" ]; then

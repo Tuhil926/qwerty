@@ -2,6 +2,7 @@
 import pyperclip
 from crypto_ops import *
 from getpass import getpass
+from qwerty_oauth import *
 
 pwd = getpass("Enter password: ")
 entries = try_decrypt(pwd)
@@ -111,8 +112,14 @@ while True:
         for entry in entries:
             text += entry[0] + '\n'
             text += entry[1] + '\n'
-        save_entries(text, pwd)
-        exit(0)
+        if save_entries(text, pwd) or not os.path.exists("token.pickle"):
+            print("Backing up to drive..")
+            try:
+                drive_service = authenticate()
+                upload_file(drive_service, QWERTY_FILENAME, QWERTY_FILENAME)
+            except:
+                print("Could not backup to drive!")
+            exit(0)
     elif choice1 == "":
         search_term = ""
     else:

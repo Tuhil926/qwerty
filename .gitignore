@@ -2,3 +2,5 @@ __pycache__/
 qwerty
 qwerty.txt
 qwerty.desktop
+qwerty_oauth_file_id.txt
+token.pickle

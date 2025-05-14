@@ -4,6 +4,8 @@ import os
 
 QWERTY_FILENAME = "qwerty.txt"
 MAGIC = "qwertyuiopasdfghjklzxcvbnm"
+start_hash = None
+end_hash = None
 
 def encrypt(text: str, pwd: str):
     salt = os.urandom(AES.block_size)
@@ -22,6 +24,7 @@ def decrypt(data: bytes, pwd: str):
     return decrypt_cipher.decrypt(ciphertext).decode('utf-8')
 
 def try_decrypt(pwd):
+    global start_hash
     enc_file = open(QWERTY_FILENAME, 'rb')
     data = enc_file.read()
     enc_file.close()
@@ -29,6 +32,7 @@ def try_decrypt(pwd):
         decrypted = decrypt(data, pwd)
     except:
         return None
+    start_hash = hashlib.sha256(decrypted.encode('utf-8')).digest()
     lines = decrypted.split('\n')
     if lines[0] != MAGIC:
         return None
@@ -40,9 +44,13 @@ def try_decrypt(pwd):
     return entries
 
 def save_entries(text, pwd):
+    global end_hash
     enc_data = encrypt(MAGIC + '\n' + text, pwd)
     with open(QWERTY_FILENAME, 'wb') as qwerty_file:
         qwerty_file.write(enc_data)
+    end_hash = hashlib.sha256((MAGIC + '\n' + text).encode('utf-8')).digest()
+    return start_hash != end_hash
+
 try:
     file = open(QWERTY_FILENAME, "r")
     file.close()

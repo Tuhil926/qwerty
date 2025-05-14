@@ -1,9 +1,10 @@
 # Qwerty
-Definitely not a password manager that encrypts yours passwords with AES.
+Definitely not a password manager that encrypts yours passwords with AES and stores the encrypted file on your google drive.
 
 ## How to install:
 - Clone the repository and make sure you have python installed.
 - If you want to change the defaults for qwerty gets installed and what python version it uses, or whether or not you want to also install the necessary modules, you can change the required variables at the top of `install.sh`.
+- If you want to enable the backup to google drive, you can either add your own `client_secret.json` file to the repo, or if you know me, you can ask me to add you as a test user. The, you have to enable the `USE_GOOGLE_DRIVE` option in the installer script.
 - Then, run the installation script:
 `./installer.sh`
 - This will ask you for you sudo password for the final step (to copy the launcher script to /usr/bin)
@@ -12,6 +13,8 @@ Definitely not a password manager that encrypts yours passwords with AES.
 
 ## How to use:
 - If you installed it for the first time, the master password is `qwerty`
+- Make sure you change your password!
+- Then, if you've enabled the drive backups, it will prompt you to grant access to this app to upload to your google drive. This is needed to back up your qwerty.txt file.
 - The input boxes in the entries can be focued on by clicking on them. If you click on them again or press enter, you can go into edit mode.
 - You can edit text in edit mode. Press ctrl+backspace or ctrl+w to delete whole words.
 - To exit edit mode, you can either click away, press esc or ctrl+c.
