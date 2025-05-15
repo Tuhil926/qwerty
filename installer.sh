@@ -38,12 +38,15 @@ cp qwerty.png $INSTALL_DIR
 cp PixelOperator8.ttf $INSTALL_DIR
 if [ "$USE_GOOGLE_DRIVE" -eq 1 ]; then
     cp client_secret.json $INSTALL_DIR
+    cp qwerty_pull.py $INSTALL_DIR
 fi
 cp qwerty_oauth.py $INSTALL_DIR
 echo '#!/bin/bash
 cd '"$INSTALL_DIR"'
 if [ "$1" = "cli" ]; then
     '"$PYTHON"' qwerty_cli.py
+elif [ "$1" = "pull" ]; then
+    '"$PYTHON"' qwerty_pull.py
 else
     '"$PYTHON"' qwerty.py
 fi' > qwerty
