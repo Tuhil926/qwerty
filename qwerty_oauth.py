@@ -22,7 +22,10 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('client_secret.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            try:
+                creds = flow.run_local_server(port=0)
+            except:
+                creds = flow.run_local_server(open_browser=False)
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
     return build('drive', 'v3', credentials=creds)
