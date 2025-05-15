@@ -119,7 +119,7 @@ while True:
                 upload_file(drive_service, QWERTY_FILENAME, QWERTY_FILENAME)
             except:
                 print("Could not backup to drive!")
-            exit(0)
+        exit(0)
     elif choice1 == "":
         search_term = ""
     else:

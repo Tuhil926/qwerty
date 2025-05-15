@@ -13,7 +13,7 @@ DESKTOP_FILE_DIR="$HOME/.local/share/applications"
 INSTALL_PYTHON_MODULES=0
 
 # make this 1 if you want it to save to google drive as a backup
-USE_GOOGLE_DRIVE=0
+USE_GOOGLE_DRIVE=1
 
 echo 'Installing qwerty at '"$INSTALL_DIR"' using '"$PYTHON"' as the python command...'
 

@@ -1,8 +1,8 @@
 from Crypto.Cipher import AES
 import hashlib
 import os
+from qwerty_oauth import authenticate, find_file_id_by_name, download_file, QWERTY_FILENAME
 
-QWERTY_FILENAME = "qwerty.txt"
 MAGIC = "qwertyuiopasdfghjklzxcvbnm"
 start_hash = None
 end_hash = None
@@ -55,9 +55,14 @@ try:
     file = open(QWERTY_FILENAME, "r")
     file.close()
 except FileNotFoundError:
-    qwertfile = open(QWERTY_FILENAME, "wb")
-    init_data = MAGIC + '\n' + 'it\n' + 'works\n'
-    pwd = "qwerty"
-    qwertfile.write(encrypt(init_data, pwd))
-    qwertfile.close()
-
+    try:
+        drive_service = authenticate()
+        file_id = find_file_id_by_name(drive_service, QWERTY_FILENAME)
+        if not file_id:
+            raise Exception("File not found on drive")
+        download_file(drive_service, file_id, QWERTY_FILENAME)
+    except:
+        with open(QWERTY_FILENAME, "wb") as qwertyfile:
+            init_data = MAGIC + '\n' + 'it\n' + 'works\n'
+            pwd = "qwerty"
+            qwertyfile.write(encrypt(init_data, pwd))
