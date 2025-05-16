@@ -1,6 +1,9 @@
 from Crypto.Cipher import AES
 import hashlib
 import os
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 from qwerty_oauth import authenticate, find_file_id_by_name, download_file, QWERTY_FILENAME
 
 MAGIC = "qwertyuiopasdfghjklzxcvbnm"
