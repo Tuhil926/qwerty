@@ -11,6 +11,20 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 - Then, you can run the gui program with the `qwerty` command, and the cli program with `qwerty cli`
 - If you had previously installed it, you can still update it by running this script, and your passwords file won't be touched.
 
+## How to install on windows:
+- Clone this repo or download it in a place you want to keep it.
+- Install python
+- Then, open terminal and run:
+
+
+* `python -m pip install pygame`
+* `python -m pip install pyperclip`
+* `python -m pip install pycryptodome`
+* `python -m pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib`
+
+- Then, right click on qwerty.py and create a desktop shortcut. You can also set the icon as qwerty.ico if you want.
+
+
 ## How to use:
 - If you installed it for the first time, the master password is `qwerty`
 - Make sure you change your password!
