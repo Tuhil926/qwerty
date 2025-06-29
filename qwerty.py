@@ -664,6 +664,7 @@ while running:
             screen.blit(backing_up_to_drive_text, (SCREEN_WIDTH/2 - backing_up_to_drive_text.get_width()/2, SCREEN_HEIGHT/2 - backing_up_to_drive_text.get_height()/2))
             pygame.display.update()
             save_data()
+            pyperclip.copy("")
             early_break = True
     if early_break:
         break
