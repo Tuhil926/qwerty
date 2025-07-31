@@ -27,7 +27,7 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 
 ## How to use:
 - If you installed it for the first time, the master password is `qwerty`
-- Make sure you change your password!
+- Make sure you change your password (ctrl+p)!
 - Then, if you've enabled the drive backups, it will prompt you to grant access to this app to upload to your google drive. This is needed to back up your qwerty.txt file.
 - The input boxes in the entries can be focued on by clicking on them. If you click on them again or press enter, you can go into edit mode.
 - You can edit text in edit mode. Press ctrl+backspace or ctrl+w to delete whole words.
@@ -35,7 +35,7 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 - You can use the arrow keys, or hjkl like in vim to move around among the entries.
 - You can use the search bar to search for entries. You can enter the search bar by pressing ctrl+/.
 - If you're not focued on any of the entries, pressing tab will focus on the first entry
-- When focused on a field(and not in edit mode), you can press ctrl+c to copy a value to clipboard, or ctrl+v to paste it from clipboard. Note that if the pasted text contains newlines, they will be replaced with spaces.
+- When focused on a field(and not in edit mode), you can press ctrl+c to copy a value to clipboard, or ctrl+v to paste it from clipboard.
 - To change the password, press ctrl+p. This will take you to the ui for changing the password.
 - You can delete an entry by clicking the `X` to it's right. If you deleted it on accident, you can get it back by pressing ctrl+z.
 - You can press the `+` button at the bottom or use the shortcut ctrl+a to add new entries.
