@@ -4,6 +4,7 @@ import pygame
 import time
 from crypto_ops import *
 from qwerty_oauth import *
+from enum import Enum
 
 pygame.init()
 
@@ -111,6 +112,13 @@ pygame.display.set_icon(pygame.image.load("qwerty.png"))
 font = pygame.font.Font("PixelOperator8.ttf", 16)
 
 
+class TextHideLevel(Enum):
+    FULLY_VISIBLE = 0
+    HIDDEN_UNLESS_FOCUSED = 1
+    HIDDEN_UNLESS_EDITING = 2
+    FULLY_HIDDEN = 3
+
+
 class TextInput:
 
     def __init__(self,
@@ -121,8 +129,7 @@ class TextInput:
                  alt_text="",
                  onEnter=None,
                  onInput=None,
-                 hidden=False,
-                 hidden_unless_focused=False,
+                 text_hidden_level=TextHideLevel.FULLY_VISIBLE,
                  on_navigation=None,
                  only_edit_mode=False,
                  clear_on_escape=False):
@@ -132,8 +139,7 @@ class TextInput:
         self.height = height
         self.is_focused = False
         self.editing = False
-        self.hidden = hidden
-        self.hidden_unless_focused = hidden_unless_focused
+        self.text_hidden_level = text_hidden_level
         self.only_edit_mode = only_edit_mode
         self.on_navigation = on_navigation
         self.clear_on_escape = clear_on_escape
@@ -149,7 +155,11 @@ class TextInput:
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
-        if self.hidden or (self.hidden_unless_focused and not self.is_focused):
+        if (
+                self.text_hidden_level == TextHideLevel.FULLY_HIDDEN
+                or (self.text_hidden_level == TextHideLevel.HIDDEN_UNLESS_FOCUSED and not self.is_focused)
+                or (self.text_hidden_level == TextHideLevel.HIDDEN_UNLESS_EDITING and not self.editing)
+                ):
             text = font.render("*" * len(self.text), False, (255, 255, 255))
         else:
             text = font.render(self.text, False, (255, 255, 255))
@@ -317,7 +327,7 @@ class Entry:
                                  self.height,
                                  text=val,
                                  alt_text="value",
-                                 hidden_unless_focused=True,
+                                 text_hidden_level=TextHideLevel.HIDDEN_UNLESS_EDITING,
                                  on_navigation=self.on_navigation)
         self.del_button = Button((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height, onClick=self.delete_self, text="X")
 
@@ -596,7 +606,7 @@ class PasswordPage:
                                alt_text="enter pwd",
                                onEnter=goto_main_page,
                                only_edit_mode=True,
-                               hidden=True)
+                               text_hidden_level=TextHideLevel.FULLY_HIDDEN)
         self.input.is_focused = True
 
     def draw(self, screen):
@@ -621,12 +631,12 @@ class ChangePasswordPage:
                                 self.input_height,
                                 alt_text="enter pwd",
                                 onEnter=focus_input_2,
-                                hidden=True)
+                                text_hidden_level=TextHideLevel.FULLY_HIDDEN)
         self.input2 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
                                 self.input_width,
                                 self.input_height,
                                 alt_text="re-enter pwd",
-                                hidden=True)
+                                text_hidden_level=TextHideLevel.FULLY_HIDDEN)
         self.input1.is_focused = True
         self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=change_password)
         self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=goto_main_page_without_pwd)
@@ -661,7 +671,8 @@ while running:
     for event in events:
         if event.type == pygame.QUIT:
             running = False
-            screen.blit(backing_up_to_drive_text, (SCREEN_WIDTH/2 - backing_up_to_drive_text.get_width()/2, SCREEN_HEIGHT/2 - backing_up_to_drive_text.get_height()/2))
+            screen.blit(backing_up_to_drive_text,
+                        (SCREEN_WIDTH / 2 - backing_up_to_drive_text.get_width() / 2, SCREEN_HEIGHT / 2 - backing_up_to_drive_text.get_height() / 2))
             pygame.display.update()
             save_data()
             pyperclip.copy("")
