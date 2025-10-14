@@ -314,37 +314,43 @@ class Button:
 
 class Entry:
 
-    def __init__(self, pos, width, height, key="", val="", on_navigation=None):
-        self.pos = pos
-        self.width = width
-        self.height = height
+    def __init__(self, pos, width, height, key="", val="", on_navigation=None, on_move_clicked=None):
+        self.pos = [0, 0]
         self.deleted = False
         self.on_navigation = on_navigation
-        kv_width = self.width - self.height
-        self.key_inp = TextInput(self.pos, kv_width / 2 - 3, self.height, text=key, alt_text="key", on_navigation=self.on_navigation)
-        self.val_inp = TextInput((self.pos[0] + kv_width / 2 + 3, self.pos[1]),
-                                 kv_width / 2 - 3,
-                                 self.height,
+        self.key_inp = TextInput((0, 0), 0, 0, text=key, alt_text="key", on_navigation=self.on_navigation)
+        self.val_inp = TextInput((0, 0),
+                                 0,
+                                 0,
                                  text=val,
                                  alt_text="value",
                                  text_hidden_level=TextHideLevel.HIDDEN_UNLESS_EDITING,
                                  on_navigation=self.on_navigation)
-        self.del_button = Button((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height, onClick=self.delete_self, text="X")
+        self.del_button = Button((0, 0), 0, 0, onClick=self.delete_self, text="X")
+        self.move_button= Button((0, 0), 0, 0, onClick=on_move_clicked, text="=")
+        self.update_dims(pos, width, height)
 
     def draw(self, screen):
         self.key_inp.draw(screen)
         self.val_inp.draw(screen)
         self.del_button.draw(screen)
+        self.move_button.draw(screen)
 
-    def update_dims(self, pos, width, height, index=0):
-        self.pos = pos
+    def update_dims(self, pos, width, height, index=0, interpolation=False):
+        if interpolation:
+            self.pos[0] = pos[0]*0.1 + self.pos[0]*0.9
+            self.pos[1] = pos[1]*0.1 + self.pos[1]*0.9
+        else:
+            self.pos[0] = pos[0]
+            self.pos[1] = pos[1]
         self.width = width
         self.height = height
         self.index = index
-        kv_width = self.width - self.height
-        self.key_inp.update_dims(self.pos, kv_width / 2 - 3, self.height)
-        self.val_inp.update_dims((self.pos[0] + kv_width / 2 + 3, self.pos[1]), kv_width / 2 - 3, self.height)
-        self.del_button.update_dims((self.pos[0] + kv_width + 6, self.pos[1]), self.height - 6, self.height)
+        kv_width = self.width - 2*self.height
+        self.key_inp.update_dims((self.pos[0] + self.height, self.pos[1]), kv_width / 2 - 3, self.height)
+        self.val_inp.update_dims((self.pos[0] + self.height + kv_width / 2 + 3, self.pos[1]), kv_width / 2 - 3, self.height)
+        self.del_button.update_dims((self.pos[0] + self.height + kv_width + 6, self.pos[1]), self.height - 6, self.height)
+        self.move_button.update_dims((self.pos[0], self.pos[1]), self.height - 6, self.height)
 
     def delete_self(self):
         self.deleted = True
@@ -354,6 +360,7 @@ class Entry:
         self.key_inp.update(keys, mouseState, delta=delta, events=events)
         self.val_inp.update(keys, mouseState, delta=delta, events=events)
         self.del_button.update(mouseState)
+        self.move_button.update(mouseState)
 
 
 class EntryList:
@@ -370,13 +377,18 @@ class EntryList:
         self.focus_on_searchbar = focus_on_searchbar
         self.unfocus_on_searchbar = unfocus_on_searchbar
         self.entry_list = [
-            Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue)
+            Entry((self.pos[0], self.pos[1] + i * self.spacing), self.width, 50, key=entries[i][0], val=entries[i][1], on_navigation=self.navigate_enqueue, on_move_clicked=self.start_move_entry)
             for i in range(len(entries))
         ]
         self.add_button = Button((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, 50, "+", onClick=self.add_entry)
         self.navigate_queue = [
             0,
         ]
+
+        self.moving_entry = None
+        self.moving_index = -1
+        self.start_move = False
+
 
     def set_filter_text(self, text):
         self.filter_text = text
@@ -385,14 +397,20 @@ class EntryList:
         for entry in self.entry_list:
             if (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower()):
                 entry.draw(screen)
+        if self.moving_entry:
+            self.moving_entry.draw(screen)
         self.add_button.draw(screen)
 
-    def update_dims(self, pos, width):
+    def update_dims(self, pos, width, mouse_pos=(0, 0), interpolation=False):
         self.pos = pos
         self.width = width
+        is_moving = self.moving_index != -1
         for i in range(len(self.entry_list)):
-            self.entry_list[i].update_dims((self.pos[0], self.pos[1] + i * self.spacing), self.width, self.entry_height, index=i)
-        self.add_button.update_dims((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, self.entry_height)
+            offset = bool(is_moving and (self.moving_index <= i))
+            self.entry_list[i].update_dims((self.pos[0], self.pos[1] + (i + offset) * self.spacing), self.width, self.entry_height, index=i, interpolation=interpolation)
+        if self.moving_entry:
+            self.moving_entry.update_dims((self.pos[0], mouse_pos[1] - self.entry_height/2), self.width, self.entry_height)
+        self.add_button.update_dims((self.pos[0], self.pos[1] + self.spacing * (len(self.entry_list) + is_moving)), self.width, self.entry_height)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         for i in range(len(self.entry_list)):
@@ -415,6 +433,31 @@ class EntryList:
         if abs(self.pos[1] - self.y_val) > 0.01:
             self.pos[1] += 10 * (self.y_val - self.pos[1]) * delta
             self.update_dims(self.pos, self.width)
+
+        mouse_pos = mouseState[0]
+        if self.start_move:
+            self.start_move = False
+            move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
+            print(move_index)
+            self.moving_index = move_index
+            self.moving_entry = self.entry_list.pop(move_index)
+            self.update_dims(self.pos, self.width)
+
+        if self.moving_entry and not mouseState[1]:
+            move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
+            move_index = min(move_index, len(self.entry_list))
+            move_index = max(move_index, 0)
+            self.moving_index = -1
+            print(move_index)
+            self.entry_list.insert(move_index, self.moving_entry)
+            self.moving_entry = None
+            self.update_dims(self.pos, self.width)
+        if self.moving_entry:
+            move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
+            move_index = min(move_index, len(self.entry_list))
+            move_index = max(move_index, 0)
+            self.moving_index = move_index
+            self.update_dims(self.pos, self.width, mouse_pos, interpolation=True)
 
     def navigate_enqueue(self, dir):
         self.navigate_queue.append(dir)
@@ -525,9 +568,16 @@ class EntryList:
             self.y_val = self.default_y_offset - focused_ind * self.spacing
             self.update_dims(self.pos, self.width)
 
-    def add_entry(self, entry=("", "")):
-        self.entry_list.append(Entry((0, 0), 0, 0, key=entry[0], val=entry[1], on_navigation=self.navigate_enqueue))
+    def add_entry(self, entry=("", ""), pos=None):
+        new_entry = Entry((0, 0), 0, 0, key=entry[0], val=entry[1], on_navigation=self.navigate_enqueue, on_move_clicked=self.start_move_entry)
+        if not pos:
+            self.entry_list.append(new_entry)
+        else:
+            self.entry_list.insert(pos, new_entry)
         self.update_dims(self.pos, self.width)
+
+    def start_move_entry(self):
+        self.start_move = True
 
     def delete_entry(self, i):
         self.entry_list.pop(i)
