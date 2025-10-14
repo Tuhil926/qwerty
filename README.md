@@ -39,5 +39,6 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 - To change the password, press ctrl+p. This will take you to the ui for changing the password.
 - You can delete an entry by clicking the `X` to it's right. If you deleted it on accident, you can get it back by pressing ctrl+z.
 - You can press the `+` button at the bottom or use the shortcut ctrl+a to add new entries.
+- You can drag on the `=` button on the left of the entries to change the ordering.
 - If you have more entries than can fit on the screen, you can scroll up or down.
 
