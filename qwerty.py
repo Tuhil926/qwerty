@@ -161,7 +161,10 @@ class TextInput:
             self.editing = True
         elif not self.is_focused:
             self.editing = False
+        # i = -1 
+        # to_pop = -1
         for event in events:
+            # i += 1
             if event.type == pygame.KEYDOWN:
                 if self.is_focused:
                     if self.editing:
@@ -227,9 +230,14 @@ class TextInput:
                         self.is_focused = True
                     if self.on_navigation:
                         self.on_navigation(-1)
+                    event.pos = (1000000000, 1000000000)
+                    # to_pop = i
                 else:
                     self.is_focused = False
                     self.editing = False
+        # Remove an event if it leads to a click
+        # if to_pop != -1:
+        #     events.pop(to_pop)
 
         if self.is_focused:
             self.color = (50, 50, 50)
@@ -301,19 +309,22 @@ class Entry:
         self.del_button = Button((0, 0), 0, 0, onClick=self.delete_self, text="X")
         self.move_button= Button((0, 0), 0, 0, onClick=on_move_clicked, text="=")
         self.update_dims(pos, width, height)
+        self.visible = True
 
     def draw(self, screen):
-        self.key_inp.draw(screen)
-        self.val_inp.draw(screen)
-        self.del_button.draw(screen)
-        self.move_button.draw(screen)
+        if self.visible:
+            self.key_inp.draw(screen)
+            self.val_inp.draw(screen)
+            self.del_button.draw(screen)
+            self.move_button.draw(screen)
 
-    def update_dims(self, pos, width, height, index=0, interpolation=False):
-        if interpolation:
-            self.pos[0] = pos[0]*0.1 + self.pos[0]*0.9
-            self.pos[1] = pos[1]*0.1 + self.pos[1]*0.9
+    def update_dims(self, pos, width, height, index=0, interpolation=False, delta=1/256):
+        self.pos[0] = pos[0]
+        diff = pos[1] - self.pos[1]
+        if interpolation and abs(diff) > 0.1:
+            ratio = min(30*delta, 0.5)
+            self.pos[1] = pos[1]*ratio + self.pos[1]*(1-ratio)
         else:
-            self.pos[0] = pos[0]
             self.pos[1] = pos[1]
         self.width = width
         self.height = height
@@ -364,34 +375,41 @@ class EntryList:
         self.moving_index = -1 # index to which entry is trying to move (mouse hovering over this index) or -1 if no entry being moved
         self.start_move = False # Simply used as a signal to trigger the move of an entry, since the move has to be done in the update function.
 
+        self.num_visible_entries = len(self.entry_list)
 
     def set_filter_text(self, text):
         self.filter_text = text
 
     def draw(self, screen):
         for entry in self.entry_list:
-            # only render an entry if nothing is being searched, or the search matches the entry.
-            if (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower()):
-                entry.draw(screen)
+            entry.draw(screen)
         if self.moving_entry:
             self.moving_entry.draw(screen)
         self.add_button.draw(screen)
 
-    def update_dims(self, pos, width, mouse_pos=(0, 0), interpolation=False):
+    def update_dims(self, pos, width, mouse_pos=(0, 0), interpolation=False, delta=1/256):
         self.pos = pos
         self.width = width
         is_moving = self.moving_index != -1 # whether an entry is being moved
 
+        num_invisible_entries = 0
         for i in range(len(self.entry_list)):
+            if not self.entry_list[i].visible:
+                num_invisible_entries += 1
             offset = bool(is_moving and (self.moving_index <= i)) # if an entry is being moved, this offset is 1 for all entries with index >= where it is going to be moved to
-            self.entry_list[i].update_dims((self.pos[0], self.pos[1] + (i + offset) * self.spacing), self.width, self.entry_height, index=i, interpolation=interpolation)
+            self.entry_list[i].update_dims((self.pos[0], self.pos[1] + (i + offset - num_invisible_entries) * self.spacing), self.width, self.entry_height, index=i, interpolation=interpolation, delta=delta)
 
         # If an entry is being moved, make it's y value follow the mouse
         if self.moving_entry:
             self.moving_entry.update_dims((self.pos[0], mouse_pos[1] - self.entry_height/2), self.width, self.entry_height)
 
         # add entry button at the end, after all entries
-        self.add_button.update_dims((self.pos[0], self.pos[1] + self.spacing * (len(self.entry_list) + is_moving)), self.width, self.entry_height)
+        add_button_y = self.pos[1] + self.spacing * (len(self.entry_list) + is_moving - num_invisible_entries)
+        diff = add_button_y - self.add_button.pos[1]
+        if interpolation and abs(diff) > 0.1:
+            ratio = min(30*delta, 0.5)
+            add_button_y = add_button_y*ratio + self.add_button.pos[1]*(1-ratio)
+        self.add_button.update_dims((self.pos[0], add_button_y), self.width, self.entry_height)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         for i in range(len(self.entry_list)):
@@ -402,7 +420,12 @@ class EntryList:
         # Finding which entry is in focus
         self.curr_focused = -1
         i = 0
+        self.num_visible_entries = 0
         for entry in self.entry_list:
+            # only render an entry if nothing is being searched, or the search matches the entry.
+            entry.visible = (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower())
+            self.num_visible_entries += entry.visible
+
             entry.update(keys, mouseState, delta, events)
             if entry.key_inp.is_focused:
                 self.curr_focused = i
@@ -416,10 +439,23 @@ class EntryList:
             dir = self.navigate_queue.pop()
             self.navigate(dir)
 
+        # If sum of heights of all the parts of the main page is greater than the screen height
+        if (self.num_visible_entries + 2) * self.spacing > SCREEN_HEIGHT:
+            # Scrolling up limit (y_val increased)
+            if self.y_val > self.default_y_offset:
+                self.y_val = self.default_y_offset
+            # Scrolling down limit (y_val decreased)
+            if self.y_val < -(len(self.entry_list) - 2) * self.spacing:
+                self.y_val = -(len(self.entry_list) - 2) * self.spacing
+        else:
+            self.y_val = self.default_y_offset
+
         # Scroll animation
         if abs(self.pos[1] - self.y_val) > 0.01:
             self.pos[1] += 10 * (self.y_val - self.pos[1]) * delta
             self.update_dims(self.pos, self.width)
+        else:
+            self.update_dims(self.pos, self.width, interpolation=True, delta=delta)
 
         mouse_pos = mouseState[0]
 
@@ -447,7 +483,7 @@ class EntryList:
             move_index = min(move_index, len(self.entry_list))
             move_index = max(move_index, 0)
             self.moving_index = move_index
-            self.update_dims(self.pos, self.width, mouse_pos, interpolation=True)
+            self.update_dims(self.pos, self.width, mouse_pos, interpolation=True, delta=delta)
 
     def navigate_enqueue(self, dir):
         self.navigate_queue.append(dir)
@@ -464,18 +500,22 @@ class EntryList:
         # 7: Navigate to search bar
         if self.curr_focused == -1:
             if len(self.entry_list):
+                self.curr_focused = 0
                 if dir == 6:
-                    self.entry_list[-1].key_inp.is_focused = True
                     if self.unfocus_on_searchbar:
                         self.unfocus_on_searchbar()
                 elif dir == 7:
+                    # self.y_val = self.default_y_offset
                     if self.focus_on_searchbar:
                         self.focus_on_searchbar()
+                    # return
                 else:
                     self.entry_list[0].key_inp.is_focused = True
                     if self.unfocus_on_searchbar:
                         self.unfocus_on_searchbar()
-            return
+                    return
+            else:
+                return
         focused_ind = self.curr_focused // 2
         is_key = not self.curr_focused % 2
         if dir == 0:
@@ -554,6 +594,7 @@ class EntryList:
         elif dir == 7:
             self.entry_list[focused_ind].key_inp.is_focused = False
             self.entry_list[focused_ind].val_inp.is_focused = False
+            self.y_val = self.default_y_offset
             if self.focus_on_searchbar:
                 self.focus_on_searchbar()
 
@@ -626,21 +667,10 @@ class MainPage:
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
             if event.type == pygame.MOUSEWHEEL:
-                # If sum of heights of all the parts of the main page is greater than the screen height
-                if (len(self.entry_list.entry_list) + 2) * self.entry_list.spacing > SCREEN_HEIGHT:
-                    self.entry_list.y_val += event.y * 10000 * delta
-                    # Scrolling up limit (y_val increased)
-                    if self.entry_list.y_val > self.entry_list_default_y_offset:
-                        self.entry_list.y_val = self.entry_list_default_y_offset
-                    # Scrolling down limit (y_val decreased)
-                    if self.entry_list.y_val < -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing:
-                        self.entry_list.y_val = -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing
-                else:
-                    self.entry_list.y_val = self.entry_list_default_y_offset
-                self.entry_list.update_dims(self.entry_list.pos, self.entry_list.width)
+                self.entry_list.y_val += event.y * 10000 * delta
 
-        self.entry_list.update(keys, mouseState, delta, events)
         self.searchbar.update(keys, mouseState, delta, events)
+        self.entry_list.update(keys, mouseState, delta, events)
 
         # This is being done after the searchbar update.
         # If done before, search bar will be in focus when updated and a '/' will be typed into it.
@@ -649,6 +679,7 @@ class MainPage:
             if event.type == pygame.KEYDOWN:
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_SLASH:
                     self.entry_list.navigate_enqueue(7)
+                    self.entry_list.y_val = self.entry_list_default_y_offset
 
     def focus_on_searchbar(self):
         self.searchbar.is_focused = True
