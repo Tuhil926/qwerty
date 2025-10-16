@@ -125,6 +125,11 @@ class TextInput:
         self.cursor_blink_timer = 0
         self.cursor_blink_time = 0.3
 
+        self.backspace_held_timer = None
+        self.backspace_hold_threshold = 0.5
+        self.quick_backspace_interval = 0.05
+        self.quick_backspace_timer = 0
+
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
         if (
@@ -161,10 +166,7 @@ class TextInput:
             self.editing = True
         elif not self.is_focused:
             self.editing = False
-        # i = -1 
-        # to_pop = -1
         for event in events:
-            # i += 1
             if event.type == pygame.KEYDOWN:
                 if self.is_focused:
                     if self.editing:
@@ -173,6 +175,7 @@ class TextInput:
                                 while len(self.text) and self.text[-1] != " ":
                                     self.text = self.text[:-1]
                             if len(self.text):
+                                self.backspace_held_timer = 0
                                 self.text = self.text[:-1]
                         elif event.key == pygame.K_ESCAPE or (event.key == pygame.K_c and keys[pygame.K_LCTRL]):
                             self.editing = False
@@ -231,13 +234,9 @@ class TextInput:
                     if self.on_navigation:
                         self.on_navigation(-1)
                     event.pos = (1000000000, 1000000000)
-                    # to_pop = i
                 else:
                     self.is_focused = False
                     self.editing = False
-        # Remove an event if it leads to a click
-        # if to_pop != -1:
-        #     events.pop(to_pop)
 
         if self.is_focused:
             self.color = (50, 50, 50)
@@ -250,6 +249,19 @@ class TextInput:
         if self.cursor_blink_timer > self.cursor_blink_time:
             self.cursor_blink_timer = 0
             self.is_cursor_visible = not self.is_cursor_visible
+
+        if self.backspace_held_timer is not None:
+            if keys[pygame.K_BACKSPACE]:
+                self.backspace_held_timer += delta
+                if self.backspace_held_timer > self.backspace_hold_threshold:
+                    self.quick_backspace_timer += delta
+                    if self.quick_backspace_timer > self.quick_backspace_interval:
+                        self.quick_backspace_timer -= self.quick_backspace_interval
+                        if len(self.text):
+                            self.text = self.text[:-1]
+            else:
+                self.backspace_held_timer = None
+                self.quick_backspace_timer = 0
 
 
 class Button:
