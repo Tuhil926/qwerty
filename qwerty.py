@@ -432,11 +432,11 @@ class EntryList:
         # Finding which entry is in focus
         self.curr_focused = -1
         i = 0
-        self.num_visible_entries = 0
+        num_visible_entries = 0
         for entry in self.entry_list:
             # only render an entry if nothing is being searched, or the search matches the entry.
             entry.visible = (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower())
-            self.num_visible_entries += entry.visible
+            num_visible_entries += entry.visible
 
             entry.update(keys, mouseState, delta, events)
             if entry.key_inp.is_focused:
@@ -444,6 +444,8 @@ class EntryList:
             elif entry.val_inp.is_focused:
                 self.curr_focused = i + 1
             i += 2
+
+        self.num_visible_entries = num_visible_entries
 
         self.add_button.update(mouseState)
 
@@ -632,7 +634,8 @@ class EntryList:
         self.update_dims(self.pos, self.width)
 
     def start_move_entry(self):
-        self.start_move = True
+        if self.num_visible_entries == len(self.entry_list):
+            self.start_move = True
 
     def delete_entry(self, i):
         self.entry_list.pop(i)
