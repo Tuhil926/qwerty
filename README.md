@@ -42,3 +42,8 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 - You can drag on the `=` button on the left of the entries to change the ordering.
 - If you have more entries than can fit on the screen, you can scroll up or down.
 
+## Backups
+- By default, qwerty will back up your encrypted passwords file to drive whenever the contents change.
+- However, It doesn't download the encrypted file from your drive every time, since that will drastically increase the loading time.
+- If you want to download the encrypted file from your drive, you can do so by running `qwerty pull`. THIS WILL OVERWRITE THE LOCAL ENCRYPTED FILE, so be careful with this.
+- You can also run `qwerty backup` to create a local backup (qwerty_backup.txt) in your install directory. I would recommend doing this once in a while just to be safe, so that you don't lose your passwords.

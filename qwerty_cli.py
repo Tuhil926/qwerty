@@ -4,6 +4,8 @@ from crypto_ops import *
 from getpass import getpass
 from qwerty_oauth import *
 
+create_qwertyfile_if_not_exists()
+
 pwd = getpass("Enter password: ")
 entries = try_decrypt(pwd)
 if not entries:

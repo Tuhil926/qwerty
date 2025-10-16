@@ -14,6 +14,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 def authenticate():
     creds = None
+    # the credentials are saved in token.pickle on the first run and can be reused
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
@@ -55,6 +56,7 @@ def find_file_id_by_name(service, filename):
 
 
 def upload_file(service, filename, filepath):
+    # Since we need file_id to update the same file, we store the id in a local file when it is first created
     try:
         with open("qwerty_oauth_file_id.txt", "r") as file_id_file:
             file_id = file_id_file.read().strip()

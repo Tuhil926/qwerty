@@ -6,6 +6,8 @@ from crypto_ops import *
 from qwerty_oauth import *
 from enum import Enum
 
+create_qwertyfile_if_not_exists()
+
 pygame.init()
 
 SCREEN_WIDTH = 1000
@@ -22,31 +24,17 @@ current_page = "pwd"
 actual_pwd = ""
 
 
-def goto_main_page():
+# Returns non-zero number on error (wrong password)
+def decrypt_and_goto_main_page() -> int:
     global current_page, pwd_page, main_page, actual_pwd
     pwd = pwd_page.input.text
     entries = try_decrypt(pwd)
     if not entries:
-        pwd_page.input.text = ""
-        pwd_page.entered_wrong_pwd = True
-        return
+        return 1
     actual_pwd = pwd
-    main_page.entry_list = EntryList((10, main_page.entry_list_default_y_offset),
-                                     SCREEN_WIDTH - 20,
-                                     entries,
-                                     default_y_offset=main_page.entry_list_default_y_offset,
-                                     focus_on_searchbar=main_page.focus_on_searchbar,
-                                     unfocus_on_searchbar=main_page.unfocus_on_searchbar)
-    main_page.searchbar = TextInput((10, 10),
-                                    SCREEN_WIDTH - 20,
-                                    50,
-                                    alt_text="search",
-                                    onEnter=None,
-                                    onInput=main_page.entry_list.set_filter_text,
-                                    only_edit_mode=True,
-                                    clear_on_escape=True)
-
+    main_page.__init__(entries)
     current_page = "main"
+    return 0
 
 
 def focus_input_2():
@@ -56,21 +44,9 @@ def focus_input_2():
     change_pwd_page.input2.is_focused = True
 
 
-def change_password():
-    global change_pwd_page, current_page, actual_pwd
-    pwd1 = change_pwd_page.input1.text
-    pwd2 = change_pwd_page.input2.text
-    if pwd1 != pwd2:
-        change_pwd_page.pwd_mismatched = True
-        return
-    if pwd1 == "":
-        return
-    actual_pwd = pwd1
-    change_pwd_page.input1.text = ""
-    change_pwd_page.input2.text = ""
-    change_pwd_page.input1.is_focused = True
-    change_pwd_page.input2.is_focused = False
-    current_page = "main"
+def change_password(new_password):
+    global actual_pwd
+    actual_pwd = new_password
 
 
 def goto_change_pwd_page():
@@ -78,13 +54,9 @@ def goto_change_pwd_page():
     current_page = "change_pwd"
 
 
-def goto_main_page_without_pwd():
-    global current_page, change_pwd_page
+def goto_main_page():
+    global current_page
     current_page = "main"
-    change_pwd_page.input1.text = ""
-    change_pwd_page.input2.text = ""
-    change_pwd_page.input1.is_focused = True
-    change_pwd_page.input2.is_focused = False
 
 
 def save_data():
@@ -367,13 +339,13 @@ class EntryList:
 
     def __init__(self, pos, width, entries=[], default_y_offset=10, focus_on_searchbar=None, unfocus_on_searchbar=None):
         self.pos = [pos[0], pos[1]]
-        self.y_val = pos[1]
+        self.y_val = pos[1] # The y value that pos[1] is trying to get to during scroll animation
         self.default_y_offset = default_y_offset
         self.width = width
-        self.entry_height = 50
-        self.spacing = 60
-        self.curr_focused = -1
-        self.filter_text = ""
+        self.entry_height = 50 # height of each entry
+        self.spacing = 60 # vertical distance between two entries
+        self.curr_focused = -1 # twice the index of the currently focused entry, +1 if it is the value input. -1 if none
+        self.filter_text = "" # Used for search
         self.focus_on_searchbar = focus_on_searchbar
         self.unfocus_on_searchbar = unfocus_on_searchbar
         self.entry_list = [
@@ -381,13 +353,16 @@ class EntryList:
             for i in range(len(entries))
         ]
         self.add_button = Button((self.pos[0], self.pos[1] + self.spacing * len(self.entry_list)), self.width, 50, "+", onClick=self.add_entry)
+
+        # Queue used for navigating among entries.
         self.navigate_queue = [
             0,
         ]
 
-        self.moving_entry = None
-        self.moving_index = -1
-        self.start_move = False
+        # State used when dragging and rearranging an entry
+        self.moving_entry = None # either an entry or none
+        self.moving_index = -1 # index to which entry is trying to move (mouse hovering over this index) or -1 if no entry being moved
+        self.start_move = False # Simply used as a signal to trigger the move of an entry, since the move has to be done in the update function.
 
 
     def set_filter_text(self, text):
@@ -395,6 +370,7 @@ class EntryList:
 
     def draw(self, screen):
         for entry in self.entry_list:
+            # only render an entry if nothing is being searched, or the search matches the entry.
             if (self.filter_text == "") or (self.filter_text.lower() in entry.key_inp.text.lower()):
                 entry.draw(screen)
         if self.moving_entry:
@@ -404,12 +380,17 @@ class EntryList:
     def update_dims(self, pos, width, mouse_pos=(0, 0), interpolation=False):
         self.pos = pos
         self.width = width
-        is_moving = self.moving_index != -1
+        is_moving = self.moving_index != -1 # whether an entry is being moved
+
         for i in range(len(self.entry_list)):
-            offset = bool(is_moving and (self.moving_index <= i))
+            offset = bool(is_moving and (self.moving_index <= i)) # if an entry is being moved, this offset is 1 for all entries with index >= where it is going to be moved to
             self.entry_list[i].update_dims((self.pos[0], self.pos[1] + (i + offset) * self.spacing), self.width, self.entry_height, index=i, interpolation=interpolation)
+
+        # If an entry is being moved, make it's y value follow the mouse
         if self.moving_entry:
             self.moving_entry.update_dims((self.pos[0], mouse_pos[1] - self.entry_height/2), self.width, self.entry_height)
+
+        # add entry button at the end, after all entries
         self.add_button.update_dims((self.pos[0], self.pos[1] + self.spacing * (len(self.entry_list) + is_moving)), self.width, self.entry_height)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
@@ -417,6 +398,8 @@ class EntryList:
             if self.entry_list[i].deleted:
                 self.delete_entry(i)
                 break
+
+        # Finding which entry is in focus
         self.curr_focused = -1
         i = 0
         for entry in self.entry_list:
@@ -426,32 +409,39 @@ class EntryList:
             elif entry.val_inp.is_focused:
                 self.curr_focused = i + 1
             i += 2
+
         self.add_button.update(mouseState)
+
         while len(self.navigate_queue):
             dir = self.navigate_queue.pop()
             self.navigate(dir)
+
+        # Scroll animation
         if abs(self.pos[1] - self.y_val) > 0.01:
             self.pos[1] += 10 * (self.y_val - self.pos[1]) * delta
             self.update_dims(self.pos, self.width)
 
         mouse_pos = mouseState[0]
+
+        # If the move button of an entry was clicked
         if self.start_move:
             self.start_move = False
             move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
-            print(move_index)
             self.moving_index = move_index
             self.moving_entry = self.entry_list.pop(move_index)
             self.update_dims(self.pos, self.width)
 
+        # If an entry is being moved, and the mouse button was released
         if self.moving_entry and not mouseState[1]:
             move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
             move_index = min(move_index, len(self.entry_list))
             move_index = max(move_index, 0)
             self.moving_index = -1
-            print(move_index)
             self.entry_list.insert(move_index, self.moving_entry)
             self.moving_entry = None
             self.update_dims(self.pos, self.width)
+
+        # While a moving entry is being dragged
         if self.moving_entry:
             move_index = int((mouse_pos[1] - self.pos[1])/self.spacing)
             move_index = min(move_index, len(self.entry_list))
@@ -463,6 +453,15 @@ class EntryList:
         self.navigate_queue.append(dir)
 
     def navigate(self, dir):
+        # Meaning of dir values:
+        # 0: Navigate up
+        # 1: Navigate left (If value in focus, go to its key, but if key in focus, go to value of previous)
+        # 2: Navigate down
+        # 3: Navigate right (If key in focus, go to its value, but if value in focus, go to next key)
+        # 4: Go down by 6 entries
+        # 5: Go up by 6 entries
+        # 6: Go to last entry's key
+        # 7: Navigate to search bar
         if self.curr_focused == -1:
             if len(self.entry_list):
                 if dir == 6:
@@ -558,12 +557,15 @@ class EntryList:
             if self.focus_on_searchbar:
                 self.focus_on_searchbar()
 
+        # If navigating to last index, scroll down so you can see it. Useful when a new entry is added.
         if focused_ind == len(self.entry_list) - 1:
             self.y_val = min(SCREEN_HEIGHT - self.spacing - (focused_ind + 1) * self.spacing, self.default_y_offset)
             self.update_dims(self.pos, self.width)
+        # If focused index goes off screen below, scroll down to see it
         if self.y_val + (focused_ind + 1) * self.spacing > SCREEN_HEIGHT:
             self.y_val -= self.y_val + (focused_ind + 1) * self.spacing - SCREEN_HEIGHT
             self.update_dims(self.pos, self.width)
+        # If focuesd index goes off screen above, scroll up to see it
         if self.y_val + focused_ind * self.spacing < self.default_y_offset:
             self.y_val = self.default_y_offset - focused_ind * self.spacing
             self.update_dims(self.pos, self.width)
@@ -588,6 +590,7 @@ class EntryList:
         for entry in self.entry_list:
             key = entry.key_inp.text
             val = entry.val_inp.text
+            # Discard empty entries
             if key or val:
                 text += key + '\n'
                 text += val + '\n'
@@ -597,9 +600,9 @@ class EntryList:
 class MainPage:
 
     def __init__(self, entries=[]):
-        self.entry_list_default_y_offset = 70
-        self.entry_list = EntryList((10, self.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=self.entry_list_default_y_offset)
-        self.searchbar = TextInput((0, 0), 0, 0)
+        self.entry_list_default_y_offset = 70 # The default, and maximum y value of the entry list
+        self.entry_list = EntryList((10, self.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
+        self.searchbar = TextInput((10, 10), SCREEN_WIDTH - 20, 50, alt_text="search", onInput=self.entry_list.set_filter_text, only_edit_mode=True, clear_on_escape=True)
 
     def draw(self, screen):
         self.entry_list.draw(screen)
@@ -608,21 +611,28 @@ class MainPage:
     def update(self, keys, mouseState, delta=0.0, events=[]):
         for event in events:
             if event.type == pygame.KEYDOWN:
+                # If undo shortcut pressed and there is an entry in deleted_entries
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_z and len(deleted_entries):
                     entry = deleted_entries.pop()
                     self.entry_list.add_entry(entry=entry)
+                # If change password shortcut pressed
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_p:
                     goto_change_pwd_page()
+                # If add entry shortcut is pressed
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_a:
                     self.entry_list.add_entry()
-                    self.entry_list.navigate_enqueue(6)
+                    self.entry_list.navigate_enqueue(6) # Navigate to the last entry (new one)
+                # If no entry in focus and there is at least one entry, pressing tab will go to the first entry
                 if self.entry_list.curr_focused == -1 and event.key == pygame.K_TAB and len(self.entry_list.entry_list):
                     self.entry_list.navigate_enqueue(0)
             if event.type == pygame.MOUSEWHEEL:
+                # If sum of heights of all the parts of the main page is greater than the screen height
                 if (len(self.entry_list.entry_list) + 2) * self.entry_list.spacing > SCREEN_HEIGHT:
                     self.entry_list.y_val += event.y * 10000 * delta
+                    # Scrolling up limit (y_val increased)
                     if self.entry_list.y_val > self.entry_list_default_y_offset:
                         self.entry_list.y_val = self.entry_list_default_y_offset
+                    # Scrolling down limit (y_val decreased)
                     if self.entry_list.y_val < -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing:
                         self.entry_list.y_val = -(len(self.entry_list.entry_list) - 2) * self.entry_list.spacing
                 else:
@@ -631,6 +641,10 @@ class MainPage:
 
         self.entry_list.update(keys, mouseState, delta, events)
         self.searchbar.update(keys, mouseState, delta, events)
+
+        # This is being done after the searchbar update.
+        # If done before, search bar will be in focus when updated and a '/' will be typed into it.
+        # There's probably a better way to do this but I don't care, this works
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_SLASH:
@@ -654,10 +668,15 @@ class PasswordPage:
                                self.input_width,
                                self.input_height,
                                alt_text="enter pwd",
-                               onEnter=goto_main_page,
+                               onEnter=self.on_password_entered,
                                only_edit_mode=True,
                                text_hidden_level=TextHideLevel.FULLY_HIDDEN)
         self.input.is_focused = True
+
+    def on_password_entered(self):
+        if decrypt_and_goto_main_page():
+            self.input.text = ""
+            self.entered_wrong_pwd = True
 
     def draw(self, screen):
         self.input.draw(screen)
@@ -687,9 +706,31 @@ class ChangePasswordPage:
                                 self.input_height,
                                 alt_text="re-enter pwd",
                                 text_hidden_level=TextHideLevel.FULLY_HIDDEN)
+        self.input1.is_focused = True # Set first input to be in focus by default
+        self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
+        self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
+
+    def reset(self):
+        self.input1.text = ""
+        self.input2.text = ""
         self.input1.is_focused = True
-        self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=change_password)
-        self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=goto_main_page_without_pwd)
+        self.input2.is_focused = False
+        self.pwd_mismatched = False
+
+    def on_change_password(self):
+        if self.input1.text!= self.input2.text:
+            self.reset()
+            self.pwd_mismatched = True
+            return
+        if self.input1.text == "":
+            return
+        change_password(self.input1.text)
+        self.reset()
+        goto_main_page()
+
+    def on_cancel(self):
+        self.reset()
+        goto_main_page()
 
     def draw(self, screen):
         self.input1.draw(screen)
@@ -730,6 +771,7 @@ while running:
     if early_break:
         break
 
+    # Inputs
     keys = pygame.key.get_pressed()
     mouse_pos = pygame.mouse.get_pos()
     mouse_pressed = pygame.mouse.get_pressed()[0]
@@ -738,12 +780,16 @@ while running:
     curr_time = time.time_ns()
     delta = (curr_time - prev_time) / 1e9
     prev_time = curr_time
+
+    # Password page
     if current_page == "pwd":
         pwd_page.update(keys, mouseState, delta, events)
         pwd_page.draw(screen)
+    # Main page
     elif current_page == "main":
         main_page.update(keys, mouseState, delta, events)
         main_page.draw(screen)
+    # Change password page
     elif current_page == "change_pwd":
         change_pwd_page.update(keys, mouseState, delta, events)
         change_pwd_page.draw(screen)

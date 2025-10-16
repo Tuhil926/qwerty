@@ -54,18 +54,16 @@ def save_entries(text, pwd):
     end_hash = hashlib.sha256((MAGIC + '\n' + text).encode('utf-8')).digest()
     return start_hash != end_hash
 
-try:
-    file = open(QWERTY_FILENAME, "r")
-    file.close()
-except FileNotFoundError:
-    try:
-        drive_service = authenticate()
-        file_id = find_file_id_by_name(drive_service, QWERTY_FILENAME)
-        if not file_id:
-            raise Exception("File not found on drive")
-        download_file(drive_service, file_id, QWERTY_FILENAME)
-    except:
-        with open(QWERTY_FILENAME, "wb") as qwertyfile:
-            init_data = MAGIC + '\n' + 'it\n' + 'works\n'
-            pwd = "qwerty"
-            qwertyfile.write(encrypt(init_data, pwd))
+def create_qwertyfile_if_not_exists():
+    if not os.path.exists(QWERTY_FILENAME):
+        try:
+            drive_service = authenticate()
+            file_id = find_file_id_by_name(drive_service, QWERTY_FILENAME)
+            if not file_id:
+                raise Exception("File not found on drive")
+            download_file(drive_service, file_id, QWERTY_FILENAME)
+        except:
+            with open(QWERTY_FILENAME, "wb") as qwertyfile:
+                init_data = MAGIC + '\n' + 'it\n' + 'works\n'
+                pwd = "qwerty"
+                qwertyfile.write(encrypt(init_data, pwd))

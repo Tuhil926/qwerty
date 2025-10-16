@@ -49,6 +49,7 @@ elif [ "$1" = "pull" ]; then
     '"$PYTHON"' qwerty_pull.py
 elif [ "$1" = "backup" ]; then
     cp qwerty.txt qwerty_backup.txt
+    echo "Created a local backup: '$INSTALL_DIR'/qwerty_backup.txt"
 else
     '"$PYTHON"' qwerty.py
 fi' > qwerty
