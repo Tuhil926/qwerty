@@ -10,7 +10,7 @@ INSTALL_DIR="$HOME/.config/qwerty"
 DESKTOP_FILE_DIR="$HOME/.local/share/applications"
 
 # make this 1 if you want it to also install the necessary python modules
-INSTALL_PYTHON_MODULES=0
+INSTALL_PYTHON_MODULES=1
 
 # make this 1 if you want it to save to google drive as a backup
 USE_GOOGLE_DRIVE=1
@@ -48,8 +48,9 @@ if [ "$1" = "cli" ]; then
 elif [ "$1" = "pull" ]; then
     '"$PYTHON"' qwerty_pull.py
 elif [ "$1" = "backup" ]; then
-    cp qwerty.txt qwerty_backup.txt
-    echo "Created a local backup: '$INSTALL_DIR'/qwerty_backup.txt"
+    backup_filename=qwerty_backup_$(date +%Y-%m-%d-%H:%M:%S)
+    cp qwerty.txt $backup_filename
+    echo "Created a local backup: '$INSTALL_DIR'/$backup_filename"
 else
     '"$PYTHON"' qwerty.py
 fi' > qwerty
