@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # put the command you use to run python here
-PYTHON="python3"
+PYTHON="python"
+PYTHON="$(command -v $PYTHON)"
+PYTHON="$(readlink -f "$PYTHON")"
 
 # put the place where you want to install qwerty here
 INSTALL_DIR="$HOME/.config/qwerty"
