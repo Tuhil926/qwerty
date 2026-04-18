@@ -1,38 +1,38 @@
 #!/bin/bash
 
 # put the command you use to run python here
-PYTHON="python"
-PYTHON="$(command -v $PYTHON)"
-PYTHON="$(readlink -f "$PYTHON")"
+USER_PYTHON="python3"
 
 # put the place where you want to install qwerty here
 INSTALL_DIR="$HOME/.config/qwerty"
 
+# This is where the qwerty launcher lives
+# make sure this in in your PATH if you want to be able to run it as a command
+EXEC_DIR="$HOME/.local/bin"
+
 # default place to put desktop files. you probably don't need to change this
 DESKTOP_FILE_DIR="$HOME/.local/share/applications"
 
-# make this 1 if you want it to also install the necessary python modules
-INSTALL_PYTHON_MODULES=1
-
-# make this 1 if you want it to save to google drive as a backup
+# make this 1 if you want it to save to google drive as a backup, 0 if not
 USE_GOOGLE_DRIVE=1
 
-echo 'Installing qwerty at '"$INSTALL_DIR"' using '"$PYTHON"' as the python command...'
-
-if [ "$EUID" -eq 0 ]
-  then echo "Please don't run as root"
-  exit
-fi
-
-if [ "$INSTALL_PYTHON_MODULES" -eq 1 ]; then
-    echo 'Installing necessary python modules..'
-    $PYTHON -m pip install pygame
-    $PYTHON -m pip install pyperclip
-    $PYTHON -m pip install pycryptodome
-    $PYTHON -m pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
-fi
+echo 'Installing qwerty at '"$INSTALL_DIR"' and '"$EXEC_DIR"' using '"$USER_PYTHON"' as the python command...'
 
 mkdir -p $INSTALL_DIR
+mkdir -p $EXEC_DIR
+
+PYTHON="$INSTALL_DIR/venv/bin/python"
+
+if [ ! -d $INSTALL_DIR/venv ]; then
+    echo 'Creating a python virtual environment...'
+    $USER_PYTHON -m venv $INSTALL_DIR/venv
+    echo 'Installing necessary requirements...'
+    $PYTHON -m pip install -r requirements.txt
+    echo 'done'
+fi
+
+echo 'copying files to '"$INSTALL_DIR"'...'
+
 cp qwerty.py $INSTALL_DIR
 cp crypto_ops.py $INSTALL_DIR
 cp qwerty_cli.py $INSTALL_DIR
@@ -57,11 +57,11 @@ else
     '"$PYTHON"' qwerty.py
 fi' > qwerty
 chmod +x qwerty
-sudo cp qwerty /usr/bin
+cp qwerty $EXEC_DIR
 
 echo '[Desktop Entry]
 Name=qwerty
-Exec=qwerty
+Exec='"$EXEC_DIR"'/qwerty
 Icon='"$INSTALL_DIR"'/qwerty.png
 Type=Application
 Categories=Utility;

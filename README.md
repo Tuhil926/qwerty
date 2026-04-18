@@ -3,12 +3,12 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 
 ## How to install:
 - Clone the repository and make sure you have python installed.
-- If you want to change the defaults for qwerty gets installed and what python version it uses, or whether or not you want to also install the necessary modules, you can change the required variables at the top of `install.sh`.
-- If you want to enable the backup to google drive, you can either add your own `client_secret.json` file to the repo, or if you know me, you can ask me to add you as a test user. The, you have to enable the `USE_GOOGLE_DRIVE` option in the installer script.
+- If you want to change the defaults for qwerty gets installed and what python version it uses, you can change the required variables at the top of `install.sh`.
+- If you want to enable the backup to google drive, you can either add your own `client_secret.json` file to the repo, or if you know me, you can ask me to add you as a test user. The, you have to make sure the `USE_GOOGLE_DRIVE` option in the installer script is enabled.
 - Then, run the installation script:
 `./installer.sh`
-- This will ask you for you sudo password for the final step (to copy the launcher script to /usr/bin)
 - Then, you can run the gui program with the `qwerty` command, and the cli program with `qwerty cli`
+- Qwerty should also show up in your applications menu.
 - If you had previously installed it, you can still update it by running this script, and your passwords file won't be touched.
 
 ## How to install on windows:
@@ -46,4 +46,4 @@ Definitely not a password manager that encrypts yours passwords with AES and sto
 - By default, qwerty will back up your encrypted passwords file to drive whenever the contents change.
 - However, It doesn't download the encrypted file from your drive every time, since that will drastically increase the loading time.
 - If you want to download the encrypted file from your drive, you can do so by running `qwerty pull`. THIS WILL OVERWRITE THE LOCAL ENCRYPTED FILE, so be careful with this.
-- You can also run `qwerty backup` to create a local backup (qwerty_backup.txt) in your install directory. I would recommend doing this once in a while just to be safe, so that you don't lose your passwords.
+- You can also run `qwerty backup` to create a local backup in your install directory. I would recommend doing this once in a while just to be safe, so that you don't lose your passwords.
