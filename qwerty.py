@@ -2,6 +2,7 @@
 import pyperclip
 import pygame
 import time
+import math
 from crypto_ops import *
 from qwerty_oauth import *
 from enum import Enum
@@ -733,6 +734,8 @@ class PasswordPage:
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.input.update(keys, mouseState, delta, events)
 
+SECONDS_FOR_ONE_BRUTEFORCE_NUMERATOR = 52
+SECONDS_FOR_ONE_BRUTEFORCE_DENOMINATOR = 1000000000
 
 class ChangePasswordPage:
 
@@ -755,6 +758,10 @@ class ChangePasswordPage:
         self.input1.is_focused = True # Set first input to be in focus by default
         self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
         self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
+
+        self.bruteforce_time_message = font.render("Time to bruteforce:", False, (220, 220, 220))
+        self.bruteforce_time = "0 seconds"
+        self.bruteforce_time_greenness = 0
 
     def reset(self):
         self.input1.text = ""
@@ -785,13 +792,83 @@ class ChangePasswordPage:
         self.cancel_button.draw(screen)
         if self.pwd_mismatched:
             screen.blit(self.pwd_not_match_msg,
-                        (SCREEN_WIDTH / 2 - self.pwd_not_match_msg.get_width() / 2, SCREEN_HEIGHT / 4 - self.pwd_not_match_msg.get_height() / 2))
+                        (SCREEN_WIDTH / 2 - self.pwd_not_match_msg.get_width() / 2, SCREEN_HEIGHT / 2 - self.pwd_not_match_msg.get_height() / 2))
+        screen.blit(self.bruteforce_time_message,
+                    (SCREEN_WIDTH / 2 - self.bruteforce_time_message.get_width() / 2, SCREEN_HEIGHT / 4 - self.bruteforce_time_message.get_height() / 2 - 30))
+        calculated_bruteforce_time_message = font.render(self.bruteforce_time, False, (255 - self.bruteforce_time_greenness, self.bruteforce_time_greenness, 0))
+        screen.blit(calculated_bruteforce_time_message,
+                    (SCREEN_WIDTH / 2 - calculated_bruteforce_time_message.get_width() / 2, SCREEN_HEIGHT / 4 - calculated_bruteforce_time_message.get_height() / 2 + 30))
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.input1.update(keys, mouseState, delta, events)
         self.input2.update(keys, mouseState, delta, events)
         self.change_button.update(mouseState)
         self.cancel_button.update(mouseState)
+
+        pwd_text = self.input1.text
+        contains_number = False
+        contains_lowercase_alpha = False
+        contains_uppercase_alpha = False
+        contains_special_char = False
+        for letter in pwd_text:
+            if letter.isnumeric():
+                contains_number = True
+            elif letter.isalpha():
+                if letter.islower():
+                    contains_lowercase_alpha = True
+                else:
+                    contains_uppercase_alpha = True
+            else:
+                contains_special_char = True
+        multiplier_base = 0
+        if contains_number:
+            multiplier_base += 10
+        if contains_lowercase_alpha:
+            multiplier_base += 26
+        if contains_uppercase_alpha:
+            multiplier_base += 26
+        if contains_special_char:
+            multiplier_base += 32
+        total_seconds_to_bruteforce = multiplier_base**len(pwd_text)
+        total_seconds_to_bruteforce *= SECONDS_FOR_ONE_BRUTEFORCE_NUMERATOR
+        total_seconds_to_bruteforce //= SECONDS_FOR_ONE_BRUTEFORCE_DENOMINATOR
+        total_seconds_to_bruteforce //= 10
+
+        self.bruteforce_time = "0 seconds"
+
+        self.bruteforce_time_greenness = int(math.log2(total_seconds_to_bruteforce + 1)*6.7) # +1 to avoid log(0)
+        self.bruteforce_time_greenness = min(self.bruteforce_time_greenness, 255)
+        self.bruteforce_time_greenness = max(self.bruteforce_time_greenness, 0)
+
+        # seconds
+        if total_seconds_to_bruteforce < 60:
+            self.bruteforce_time = str(total_seconds_to_bruteforce) + " second"
+        else:
+            # minutes
+            total_seconds_to_bruteforce //= 60
+            if total_seconds_to_bruteforce < 60:
+                self.bruteforce_time = str(total_seconds_to_bruteforce) + " minute"
+            else:
+                # hours
+                total_seconds_to_bruteforce //= 60
+                if total_seconds_to_bruteforce < 24:
+                    self.bruteforce_time = str(total_seconds_to_bruteforce) + " hour"
+                else:
+                    # days
+                    total_seconds_to_bruteforce //= 24
+                    if total_seconds_to_bruteforce < 30:
+                        self.bruteforce_time = str(total_seconds_to_bruteforce) + " day"
+                    else:
+                        # months
+                        total_seconds_to_bruteforce //= 30
+                        if total_seconds_to_bruteforce < 12:
+                            self.bruteforce_time = str(total_seconds_to_bruteforce) + " month"
+                        else:
+                            # years
+                            total_seconds_to_bruteforce //= 12
+                            self.bruteforce_time = str(total_seconds_to_bruteforce) + " year"
+        if total_seconds_to_bruteforce > 1 or total_seconds_to_bruteforce < 1:
+            self.bruteforce_time += "s"
 
 
 main_page = MainPage()
