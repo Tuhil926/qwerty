@@ -16,6 +16,19 @@ SCREEN_HEIGHT = 700
 
 ONLY_EDIT_MODE = False
 
+BACKGROUND_COLOR = (0, 0, 0)
+DEFAULT_TEXT_COLOR = (255, 255, 255)
+SLIGHTLY_DISABLED_TEXT_COLOR = (200, 200, 200)
+
+TEXTINPUT_DEFAULT_BACKGROUND_COLOR = (20, 20, 20)
+TEXTINPUT_HOVER_BACKGROUND_COLOR = (30, 30, 30)
+TEXTINPUT_FOCUS_BACKGROUND_COLOR = (50, 50, 50)
+TEXTINPUT_ALT_TEXT_COLOR = (120, 120, 120)
+
+BUTTON_DEFAULT_BACKGROUND_COLOR = (70, 70, 70)
+BUTTON_HOVER_BACKGROUND_COLOR = (100, 100, 100)
+BUTTON_FOCUS_BACKGROUND_COLOR = (120, 120, 120)
+
 deleted_entries = []
 
 
@@ -118,12 +131,12 @@ class TextInput:
         self.only_edit_mode = only_edit_mode
         self.on_navigation = on_navigation
         self.clear_on_escape = clear_on_escape
-        self.default_text = font.render("<lotta text>", False, (200, 200, 200))
+        self.default_text = font.render("<lotta text>", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.alt_text = alt_text
-        self.alt_text_rendered = font.render(alt_text, False, (120, 120, 120))
+        self.alt_text_rendered = font.render(alt_text, False, TEXTINPUT_ALT_TEXT_COLOR)
         self.onEnter = onEnter
         self.onInput = onInput
-        self.color = (20, 20, 20)
+        self.color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
         self.is_cursor_visible = True
         self.cursor_blink_timer = 0
         self.cursor_blink_time = 0.3
@@ -143,9 +156,9 @@ class TextInput:
                 or (self.text_hidden_level == TextHideLevel.HIDDEN_UNLESS_FOCUSED and not self.is_focused)
                 or (self.text_hidden_level == TextHideLevel.HIDDEN_UNLESS_EDITING and not self.editing)
                 ):
-            text = font.render("*" * len(self.text), False, (255, 255, 255))
+            text = font.render("*" * len(self.text), False, DEFAULT_TEXT_COLOR)
         else:
-            text = font.render(self.text, False, (255, 255, 255))
+            text = font.render(self.text, False, DEFAULT_TEXT_COLOR)
 
         # If the text fits on the screen or it's in edit mode
         if text.get_width() <= self.width or self.editing:
@@ -161,7 +174,7 @@ class TextInput:
             # Always render the cursor if it's in edit mode
             if self.editing and self.is_cursor_visible:
                 pygame.draw.rect(
-                    screen, (255, 255, 255),
+                    screen, DEFAULT_TEXT_COLOR,
                     (self.pos[0] + self.width / 2 + text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2, 10, text.get_height()))
         # If the text doesn't fit, render <lotta text>
         else:
@@ -257,11 +270,11 @@ class TextInput:
                     self.editing = False
 
         if self.is_focused:
-            self.color = (50, 50, 50)
+            self.color = TEXTINPUT_FOCUS_BACKGROUND_COLOR
         elif collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos):
-            self.color = (30, 30, 30)
+            self.color = TEXTINPUT_HOVER_BACKGROUND_COLOR
         else:
-            self.color = (20, 20, 20)
+            self.color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
 
         self.cursor_blink_timer += delta
         if self.cursor_blink_timer > self.cursor_blink_time:
@@ -291,7 +304,7 @@ class Button:
         self.text = text
         self.onClick = onClick
         self.prev_mouse_state = True
-        self.color = (100, 100, 100)
+        self.color = BUTTON_DEFAULT_BACKGROUND_COLOR
 
     def draw(self, screen):
         # bounding box
@@ -299,7 +312,7 @@ class Button:
 
         # text
         if self.text != "":
-            text = font.render(self.text, False, (255, 255, 255))
+            text = font.render(self.text, False, DEFAULT_TEXT_COLOR)
             screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
 
     def update_dims(self, pos, width, height):
@@ -317,11 +330,11 @@ class Button:
                     self.onClick()
         if colliding:
             if mouse_clicked:
-                self.color = (120, 120, 120)
+                self.color = BUTTON_FOCUS_BACKGROUND_COLOR
             else:
-                self.color = (100, 100, 100)
+                self.color = BUTTON_HOVER_BACKGROUND_COLOR
         else:
-            self.color = (70, 70, 70)
+            self.color = BUTTON_DEFAULT_BACKGROUND_COLOR
         self.prev_mouse_state = mouse_pressed
 
 
@@ -731,7 +744,7 @@ class PasswordPage:
         self.input_width = 600
         self.input_height = 50
         self.entered_wrong_pwd = False
-        self.wrong_pwd_message = font.render("wrong password", False, (200, 200, 200))
+        self.wrong_pwd_message = font.render("wrong password", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.input = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - self.input_height / 2),
                                self.input_width,
                                self.input_height,
@@ -764,7 +777,7 @@ class ChangePasswordPage:
         self.input_width = 600
         self.input_height = 50
         self.pwd_mismatched = False
-        self.pwd_not_match_msg = font.render("passwords don't match", False, (200, 200, 200))
+        self.pwd_not_match_msg = font.render("passwords don't match", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.input1 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - 1.5 * self.input_height),
                                 self.input_width,
                                 self.input_height,
@@ -782,7 +795,7 @@ class ChangePasswordPage:
         self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
         self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
 
-        self.bruteforce_time_message = font.render("Time to bruteforce:", False, (220, 220, 220))
+        self.bruteforce_time_message = font.render("Time to bruteforce:", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.bruteforce_time = "0 seconds"
         self.bruteforce_time_greenness = 0
 
@@ -898,7 +911,7 @@ main_page = MainPage()
 pwd_page = PasswordPage()
 change_pwd_page = ChangePasswordPage()
 
-backing_up_to_drive_text = font.render("Backing up to drive..", False, (255, 255, 255))
+backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
 
 running = True
 prev_time = time.time_ns()
@@ -941,5 +954,5 @@ while running:
         change_pwd_page.draw(screen)
 
     pygame.display.update()
-    screen.fill((0, 0, 0))
+    screen.fill(BACKGROUND_COLOR)
     time.sleep(1 / 256)
