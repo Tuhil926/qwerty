@@ -110,7 +110,7 @@ def decrypt_and_goto_main_page() -> int:
     if not entries:
         return 1
     actual_pwd = pwd
-    main_page.__init__(entries)
+    main_page.__init__([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT, entries)
     current_page = "main"
     return 0
 
@@ -797,11 +797,14 @@ class EntryList:
 
 class MainPage:
 
-    def __init__(self, entries=[]):
+    def __init__(self, pos, width, height, entries=[]):
+        self.pos = pos
+        self.width = width
+        self.height = height
         self.entry_list_default_y_offset = 70 # The default, and maximum y value of the entry list
-        self.entry_list = EntryList((10, self.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
+        self.entry_list = EntryList((self.pos[0] + 10, self.pos[1] + self.entry_list_default_y_offset), self.width - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
         self.searchbar = TextInput((0, 0), 0, 0, alt_text="search", onInput=self.entry_list.set_filter_text, only_edit_mode=True, clear_on_escape=True, has_copy_button=False)
-        self.searchbar.update_dims((10, 10), SCREEN_WIDTH - 20, 50)
+        self.searchbar.update_dims((self.pos[0] + 10, self.pos[1] + 10), self.width - 20, 50)
 
     def draw(self, screen):
         self.entry_list.draw(screen)
@@ -851,7 +854,10 @@ class MainPage:
 
 class PasswordPage:
 
-    def __init__(self):
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
         self.input_width = 600
         self.input_height = 50
         self.entered_wrong_pwd = False
@@ -865,7 +871,7 @@ class PasswordPage:
                                text_hidden_level=TextHideLevel.FULLY_HIDDEN,
                                has_copy_button=False)
         self.input.is_focused = True
-        self.input.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - self.input_height / 2),
+        self.input.update_dims((self.pos[0] + self.width / 2 - self.input_width / 2, self.pos[1] + self.height / 2 - self.input_height / 2),
                                self.input_width,
                                self.input_height)
 
@@ -878,7 +884,7 @@ class PasswordPage:
         self.input.draw(screen)
         if self.entered_wrong_pwd:
             screen.blit(self.wrong_pwd_message,
-                        (SCREEN_WIDTH / 2 - self.wrong_pwd_message.get_width() / 2, SCREEN_HEIGHT / 3 - self.wrong_pwd_message.get_height() / 2))
+                        (self.pos[0] + self.width / 2 - self.wrong_pwd_message.get_width() / 2, self.pos[1] + self.height / 3 - self.wrong_pwd_message.get_height() / 2))
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.input.update(keys, mouseState, delta, events)
@@ -888,7 +894,10 @@ SECONDS_FOR_ONE_BRUTEFORCE_DENOMINATOR = 1000000000
 
 class ChangePasswordPage:
 
-    def __init__(self):
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
         self.input_width = 600
         self.input_height = 50
         self.pwd_mismatched = False
@@ -905,17 +914,17 @@ class ChangePasswordPage:
                                 only_edit_mode=True,
                                 has_copy_button=False)
         self.input1.is_focused = True # Set first input to be in focus by default
-        self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
-        self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
+        self.change_button = Button((self.pos[0] + self.width / 2 - 200, self.pos[1] + 3 * self.height / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
+        self.cancel_button = Button((self.pos[0] + self.width / 2 - 200, self.pos[1] + 3 * self.height / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
 
         self.bruteforce_time_message = font.render("Time to bruteforce:", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.bruteforce_time = "0 seconds"
         self.bruteforce_time_greenness = 0
 
-        self.input1.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - 1.5 * self.input_height),
+        self.input1.update_dims((self.pos[0] + self.width / 2 - self.input_width / 2, self.pos[1] + self.height / 2 - 1.5 * self.input_height),
                                 self.input_width,
                                 self.input_height)
-        self.input2.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
+        self.input2.update_dims((self.pos[0] + self.width / 2 - self.input_width / 2, self.pos[1] + self.height / 2 + 0.5 * self.input_height),
                                 self.input_width,
                                 self.input_height)
 
@@ -948,12 +957,12 @@ class ChangePasswordPage:
         self.cancel_button.draw(screen)
         if self.pwd_mismatched:
             screen.blit(self.pwd_not_match_msg,
-                        (SCREEN_WIDTH / 2 - self.pwd_not_match_msg.get_width() / 2, SCREEN_HEIGHT / 2 - self.pwd_not_match_msg.get_height() / 2))
+                        (self.pos[0] + self.width / 2 - self.pwd_not_match_msg.get_width() / 2, self.pos[1] + self.height / 2 - self.pwd_not_match_msg.get_height() / 2))
         screen.blit(self.bruteforce_time_message,
-                    (SCREEN_WIDTH / 2 - self.bruteforce_time_message.get_width() / 2, SCREEN_HEIGHT / 4 - self.bruteforce_time_message.get_height() / 2 - 30))
+                    (self.pos[0] + self.width / 2 - self.bruteforce_time_message.get_width() / 2, self.pos[1] + self.height / 4 - self.bruteforce_time_message.get_height() / 2 - 30))
         calculated_bruteforce_time_message = font.render(self.bruteforce_time, False, (255 - self.bruteforce_time_greenness, self.bruteforce_time_greenness, 0))
         screen.blit(calculated_bruteforce_time_message,
-                    (SCREEN_WIDTH / 2 - calculated_bruteforce_time_message.get_width() / 2, SCREEN_HEIGHT / 4 - calculated_bruteforce_time_message.get_height() / 2 + 30))
+                    (self.pos[0] + self.width / 2 - calculated_bruteforce_time_message.get_width() / 2, self.pos[1] + self.height / 4 - calculated_bruteforce_time_message.get_height() / 2 + 30))
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.input1.update(keys, mouseState, delta, events)
@@ -1061,9 +1070,9 @@ class SettingsPage:
 
 
 
-main_page = MainPage()
-pwd_page = PasswordPage()
-change_pwd_page = ChangePasswordPage()
+main_page = MainPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
+pwd_page = PasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
+change_pwd_page = ChangePasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
 settings_page = SettingsPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
 
 backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
