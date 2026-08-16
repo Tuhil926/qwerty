@@ -185,7 +185,8 @@ class TextInput:
                  text_hidden_level=TextHideLevel.FULLY_VISIBLE,
                  on_navigation=None, # callback function to call when a navigation event is triggered
                  only_edit_mode=False, # makes it only either be focused or in edit mode
-                 clear_on_escape=False):
+                 clear_on_escape=False,
+                 has_copy_button=True):
         self.text = text
         self.pos = pos
         self.width = width
@@ -210,6 +211,11 @@ class TextInput:
         self.backspace_hold_threshold = 0.5
         self.quick_backspace_interval = 0.05
         self.quick_backspace_timer = 0
+        self.copy_button = CopyButton([0, 0], 0, 0, self.copy_value)
+        self.has_copy_button = has_copy_button
+
+    def copy_value(self):
+        pyperclip.copy(self.text)
 
     def draw(self, screen):
         # bounding box
@@ -245,13 +251,18 @@ class TextInput:
         else:
             screen.blit(self.default_text,
                         (self.pos[0] + self.width / 2 - self.default_text.get_width() / 2, self.pos[1] + self.height / 2 - self.default_text.get_height() / 2))
+        if self.has_copy_button:
+            self.copy_button.draw(screen)
 
     def update_dims(self, pos, width, height):
         self.pos = pos
         self.width = width
         self.height = height
+        self.copy_button.update_dims([self.pos[0] + self.width - self.height + 4, self.pos[1] + 4], self.height - 8, self.height - 8)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
+        if self.has_copy_button:
+            self.copy_button.update(mouseState)
         mouse_pos = mouseState[0]
         # mouse_pressed = mouseState[1]
         if self.is_focused and self.only_edit_mode:
@@ -319,7 +330,7 @@ class TextInput:
                         if self.on_navigation:
                             self.on_navigation(5)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if collide_rect((self.pos[0], self.pos[1], self.width, self.height), event.pos):
+                if collide_rect((self.pos[0], self.pos[1], self.width - (self.height - 4)*self.has_copy_button, self.height), event.pos):
                     if self.is_focused:
                         self.editing = True
                     else:
@@ -333,13 +344,20 @@ class TextInput:
                 else:
                     self.is_focused = False
                     self.editing = False
-
+        mouse_over = collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos)
         if self.is_focused:
             self.color = TEXTINPUT_FOCUS_BACKGROUND_COLOR
-        elif collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos):
+        elif mouse_over:
             self.color = TEXTINPUT_HOVER_BACKGROUND_COLOR
         else:
             self.color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+
+        if self.has_copy_button:
+            if mouse_over:
+                self.copy_button.visible = True
+            else:
+                self.copy_button.visible = False
+
 
         self.cursor_blink_timer += delta
         if self.cursor_blink_timer > self.cursor_blink_time:
@@ -401,6 +419,30 @@ class Button:
         else:
             self.color = BUTTON_DEFAULT_BACKGROUND_COLOR
         self.prev_mouse_state = mouse_pressed
+
+
+class CopyButton:
+    def __init__(self, pos, width, height, copy_callback):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.copy_button = Button(self.pos, self.width, self.height, "", copy_callback)
+        self.visible = False
+
+    def draw(self, screen):
+        if self.visible:
+            self.copy_button.draw(screen)
+            pygame.draw.rect(screen, (150, 150, 150), (self.pos[0] + (self.width*3)//16, self.pos[1] + (self.height*3)//16, (self.width*7)//16, (self.height*7)//16))
+            pygame.draw.rect(screen, (200, 200, 200), (self.pos[0] + (self.width*6)//16, self.pos[1] + (self.height*6)//16, (self.width*7)//16, (self.height*7)//16))
+
+    def update_dims(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.copy_button.update_dims(self.pos, self.width, self.height)
+
+    def update(self, mouseState):
+        self.copy_button.update(mouseState)
 
 
 class Entry:
@@ -758,7 +800,8 @@ class MainPage:
     def __init__(self, entries=[]):
         self.entry_list_default_y_offset = 70 # The default, and maximum y value of the entry list
         self.entry_list = EntryList((10, self.entry_list_default_y_offset), SCREEN_WIDTH - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
-        self.searchbar = TextInput((10, 10), SCREEN_WIDTH - 20, 50, alt_text="search", onInput=self.entry_list.set_filter_text, only_edit_mode=True, clear_on_escape=True)
+        self.searchbar = TextInput((0, 0), 0, 0, alt_text="search", onInput=self.entry_list.set_filter_text, only_edit_mode=True, clear_on_escape=True, has_copy_button=False)
+        self.searchbar.update_dims((10, 10), SCREEN_WIDTH - 20, 50)
 
     def draw(self, screen):
         self.entry_list.draw(screen)
@@ -813,14 +856,18 @@ class PasswordPage:
         self.input_height = 50
         self.entered_wrong_pwd = False
         self.wrong_pwd_message = font.render("wrong password", False, SLIGHTLY_DISABLED_TEXT_COLOR)
-        self.input = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - self.input_height / 2),
-                               self.input_width,
-                               self.input_height,
+        self.input = TextInput((0, 0),
+                               0,
+                               0,
                                alt_text="enter pwd",
                                onEnter=self.on_password_entered,
                                only_edit_mode=True,
-                               text_hidden_level=TextHideLevel.FULLY_HIDDEN)
+                               text_hidden_level=TextHideLevel.FULLY_HIDDEN,
+                               has_copy_button=False)
         self.input.is_focused = True
+        self.input.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - self.input_height / 2),
+                               self.input_width,
+                               self.input_height)
 
     def on_password_entered(self):
         if decrypt_and_goto_main_page():
@@ -846,19 +893,17 @@ class ChangePasswordPage:
         self.input_height = 50
         self.pwd_mismatched = False
         self.pwd_not_match_msg = font.render("passwords don't match", False, SLIGHTLY_DISABLED_TEXT_COLOR)
-        self.input1 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - 1.5 * self.input_height),
-                                self.input_width,
-                                self.input_height,
+        self.input1 = TextInput((0, 0), 0, 0,
                                 alt_text="enter pwd",
                                 onEnter=focus_input_2,
                                 text_hidden_level=TextHideLevel.FULLY_HIDDEN,
-                                only_edit_mode=True)
-        self.input2 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
-                                self.input_width,
-                                self.input_height,
+                                only_edit_mode=True,
+                                has_copy_button=False)
+        self.input2 = TextInput((0, 0), 0, 0,
                                 alt_text="re-enter pwd",
                                 text_hidden_level=TextHideLevel.FULLY_HIDDEN,
-                                only_edit_mode=True)
+                                only_edit_mode=True,
+                                has_copy_button=False)
         self.input1.is_focused = True # Set first input to be in focus by default
         self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
         self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
@@ -866,6 +911,13 @@ class ChangePasswordPage:
         self.bruteforce_time_message = font.render("Time to bruteforce:", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.bruteforce_time = "0 seconds"
         self.bruteforce_time_greenness = 0
+
+        self.input1.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 - 1.5 * self.input_height),
+                                self.input_width,
+                                self.input_height)
+        self.input2.update_dims((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
+                                self.input_width,
+                                self.input_height)
 
     def reset(self):
         self.input1.text = ""
