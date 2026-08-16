@@ -14,6 +14,8 @@ pygame.init()
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 
+ONLY_EDIT_MODE = False
+
 deleted_entries = []
 
 
@@ -99,12 +101,12 @@ class TextInput:
                  width,
                  height,
                  text="",
-                 alt_text="",
+                 alt_text="", # text to display when input is empty
                  onEnter=None,
                  onInput=None,
                  text_hidden_level=TextHideLevel.FULLY_VISIBLE,
-                 on_navigation=None,
-                 only_edit_mode=False,
+                 on_navigation=None, # callback function to call when a navigation event is triggered
+                 only_edit_mode=False, # makes it only either be focused or in edit mode
                  clear_on_escape=False):
         self.text = text
         self.pos = pos
@@ -132,7 +134,10 @@ class TextInput:
         self.quick_backspace_timer = 0
 
     def draw(self, screen):
+        # bounding box
         pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
+
+        # render stars when text should be hidden, otherwise the text
         if (
                 self.text_hidden_level == TextHideLevel.FULLY_HIDDEN
                 or (self.text_hidden_level == TextHideLevel.HIDDEN_UNLESS_FOCUSED and not self.is_focused)
@@ -141,16 +146,24 @@ class TextInput:
             text = font.render("*" * len(self.text), False, (255, 255, 255))
         else:
             text = font.render(self.text, False, (255, 255, 255))
+
+        # If the text fits on the screen or it's in edit mode
         if text.get_width() <= self.width or self.editing:
+            # If there's text, render it
             if self.text != "":
                 screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
+            # Otherwise render alt text if we're not editing, or if it's in edit only mode
+            # (because otherwise alt text will not show in the initial password field since it's focuesd by default)
             elif not self.editing or self.only_edit_mode:
                 screen.blit(self.alt_text_rendered, (self.pos[0] + self.width / 2 - self.alt_text_rendered.get_width() / 2,
                                                      self.pos[1] + self.height / 2 - self.alt_text_rendered.get_height() / 2))
-            if self.editing and self.is_cursor_visible and (not self.only_edit_mode or not self.text == ""):
+
+            # Always render the cursor if it's in edit mode
+            if self.editing and self.is_cursor_visible:
                 pygame.draw.rect(
                     screen, (255, 255, 255),
                     (self.pos[0] + self.width / 2 + text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2, 10, text.get_height()))
+        # If the text doesn't fit, render <lotta text>
         else:
             screen.blit(self.default_text,
                         (self.pos[0] + self.width / 2 - self.default_text.get_width() / 2, self.pos[1] + self.height / 2 - self.default_text.get_height() / 2))
@@ -167,6 +180,7 @@ class TextInput:
             self.editing = True
         elif not self.is_focused:
             self.editing = False
+
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if self.is_focused:
@@ -193,21 +207,21 @@ class TextInput:
                         else:
                             self.text += event.unicode
                         if self.on_navigation:
-                            self.on_navigation(-1)
+                            self.on_navigation(-1) # creating a dummy navigation event so it gets scrolled to if it's off screen
                         if self.onInput:
                             self.onInput(self.text)
                     elif event.key == pygame.K_c and keys[pygame.K_LCTRL] and self.text != "":
                         pyperclip.copy(self.text)
                         if self.on_navigation:
-                            self.on_navigation(-1)
+                            self.on_navigation(-1) # creating a dummy navigation event so it gets scrolled to if it's off screen
                     elif event.key == pygame.K_v and keys[pygame.K_LCTRL]:
                         self.text = pyperclip.paste()
                         if self.on_navigation:
-                            self.on_navigation(-1)
+                            self.on_navigation(-1) # creating a dummy navigation event so it gets scrolled to if it's off screen
                     elif event.key == pygame.K_RETURN:
                         self.editing = True
                         if self.on_navigation:
-                            self.on_navigation(-1)
+                            self.on_navigation(-1) # creating a dummy navigation event so it gets scrolled to if it's off screen
                     elif event.key == pygame.K_UP or event.key == pygame.K_k:
                         if self.on_navigation:
                             self.on_navigation(0)
@@ -232,9 +246,12 @@ class TextInput:
                         self.editing = True
                     else:
                         self.is_focused = True
+                        # If there is no text, go straight into edit mode. Also if normal mode is disabled
+                        if self.text == "" or ONLY_EDIT_MODE:
+                            self.editing = True
                     if self.on_navigation:
-                        self.on_navigation(-1)
-                    event.pos = (1000000000, 1000000000)
+                        self.on_navigation(-1) # creating a dummy navigation event so it gets scrolled to if it's off screen
+                    event.pos = (1000000000, 1000000000) # invalid position so only one thing can be clicked on at a time
                 else:
                     self.is_focused = False
                     self.editing = False
@@ -277,7 +294,10 @@ class Button:
         self.color = (100, 100, 100)
 
     def draw(self, screen):
+        # bounding box
         pygame.draw.rect(screen, self.color, (self.pos[0], self.pos[1], self.width, self.height))
+
+        # text
         if self.text != "":
             text = font.render(self.text, False, (255, 255, 255))
             screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
@@ -505,6 +525,7 @@ class EntryList:
 
     def navigate(self, dir):
         # Meaning of dir values:
+        #-1: Do nothing but scroll to the currently focused element
         # 0: Navigate up
         # 1: Navigate left (If value in focus, go to its key, but if key in focus, go to value of previous)
         # 2: Navigate down
@@ -749,12 +770,14 @@ class ChangePasswordPage:
                                 self.input_height,
                                 alt_text="enter pwd",
                                 onEnter=focus_input_2,
-                                text_hidden_level=TextHideLevel.FULLY_HIDDEN)
+                                text_hidden_level=TextHideLevel.FULLY_HIDDEN,
+                                only_edit_mode=True)
         self.input2 = TextInput((SCREEN_WIDTH / 2 - self.input_width / 2, SCREEN_HEIGHT / 2 + 0.5 * self.input_height),
                                 self.input_width,
                                 self.input_height,
                                 alt_text="re-enter pwd",
-                                text_hidden_level=TextHideLevel.FULLY_HIDDEN)
+                                text_hidden_level=TextHideLevel.FULLY_HIDDEN,
+                                only_edit_mode=True)
         self.input1.is_focused = True # Set first input to be in focus by default
         self.change_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
         self.cancel_button = Button((SCREEN_WIDTH / 2 - 200, 3 * SCREEN_HEIGHT / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
@@ -865,7 +888,7 @@ class ChangePasswordPage:
                             self.bruteforce_time = str(total_seconds_to_bruteforce) + " month"
                         else:
                             # years
-                            total_seconds_to_bruteforce //= 12
+                            total_seconds_to_bruteforce //= 12 # Now I know this assumes a year has 360 days, but this is just an order of magnitude approximation so I don't care
                             self.bruteforce_time = str(total_seconds_to_bruteforce) + " year"
         if total_seconds_to_bruteforce > 1 or total_seconds_to_bruteforce < 1:
             self.bruteforce_time += "s"
