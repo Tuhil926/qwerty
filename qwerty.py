@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import pyperclip
 import pygame
 import time
@@ -29,6 +30,43 @@ BUTTON_DEFAULT_BACKGROUND_COLOR = (70, 70, 70)
 BUTTON_HOVER_BACKGROUND_COLOR = (100, 100, 100)
 BUTTON_FOCUS_BACKGROUND_COLOR = (120, 120, 120)
 
+def get_color_setting(json_object, key, default_value):
+    color_setting = json_object[key]
+    if isinstance(color_setting, list) and len(color_setting) == 3 and all(isinstance(value, int) for value in color_setting):
+        return tuple(color_setting)
+    return default_value
+
+try:
+    with open("settings.json", "r") as settings_file:
+        settings = json.load(settings_file)
+
+    screen_width = settings["screen_width"]
+    if isinstance(screen_width, int) and screen_width > 0:
+        SCREEN_WIDTH = screen_width
+
+    screen_height = settings["screen_height"]
+    if isinstance(screen_height, int) and screen_height > 0:
+        SCREEN_height = screen_height
+
+    only_edit_mode = settings["only_edit_mode"]
+    if isinstance(only_edit_mode, bool):
+        ONLY_EDIT_MODE = only_edit_mode
+
+    BACKGROUND_COLOR = get_color_setting(settings, "background_color", BACKGROUND_COLOR)
+    DEFAULT_TEXT_COLOR = get_color_setting(settings, "default_text_color", DEFAULT_TEXT_COLOR)
+    SLIGHTLY_DISABLED_TEXT_COLOR = get_color_setting(settings, "slightly_disabled_text_color", SLIGHTLY_DISABLED_TEXT_COLOR)
+
+    TEXTINPUT_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "textinput_default_background_color", TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+    TEXTINPUT_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "textinput_hover_background_color", TEXTINPUT_HOVER_BACKGROUND_COLOR)
+    TEXTINPUT_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "textinput_focus_background_color", TEXTINPUT_FOCUS_BACKGROUND_COLOR)
+    TEXTINPUT_ALT_TEXT_COLOR = get_color_setting(settings, "textinput_alt_text_color", TEXTINPUT_ALT_TEXT_COLOR)
+
+    BUTTON_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "button_default_background_color", BUTTON_DEFAULT_BACKGROUND_COLOR)
+    BUTTON_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "button_hover_background_color", BUTTON_HOVER_BACKGROUND_COLOR)
+    BUTTON_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "button_focus_background_color", BUTTON_FOCUS_BACKGROUND_COLOR)
+except:
+    print("Could not open settings file")
+
 deleted_entries = []
 
 
@@ -38,6 +76,30 @@ def collide_rect(rect, pos):
 
 current_page = "pwd"
 actual_pwd = ""
+
+
+def save_settings():
+    with open("settings.json", "w") as settings_file:
+        settings = {
+            "screen_width": SCREEN_WIDTH,
+            "screen_height": SCREEN_HEIGHT,
+
+            "only_edit_mode": ONLY_EDIT_MODE,
+
+            "background_color": BACKGROUND_COLOR,
+            "default_text_color": DEFAULT_TEXT_COLOR,
+            "slightly_disabled_text_color": SLIGHTLY_DISABLED_TEXT_COLOR,
+
+            "textinput_default_background_color": TEXTINPUT_DEFAULT_BACKGROUND_COLOR,
+            "textinput_hover_background_color": TEXTINPUT_HOVER_BACKGROUND_COLOR,
+            "textinput_focus_background_color": TEXTINPUT_FOCUS_BACKGROUND_COLOR,
+            "textinput_alt_text_color": TEXTINPUT_ALT_TEXT_COLOR,
+
+            "button_default_background_color": BUTTON_DEFAULT_BACKGROUND_COLOR,
+            "button_hover_background_color": BUTTON_HOVER_BACKGROUND_COLOR,
+            "button_focus_background_color": BUTTON_FOCUS_BACKGROUND_COLOR,
+        }
+        json.dump(settings, settings_file, indent=4)
 
 
 # Returns non-zero number on error (wrong password)
@@ -69,6 +131,9 @@ def goto_change_pwd_page():
     global current_page
     current_page = "change_pwd"
 
+def goto_settings_page():
+    global current_page
+    current_page = "settings"
 
 def goto_main_page():
     global current_page
@@ -709,6 +774,9 @@ class MainPage:
                 # If change password shortcut pressed
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_p:
                     goto_change_pwd_page()
+                # If settings shortcut pressed
+                if keys[pygame.K_LCTRL] and event.key == pygame.K_o:
+                    goto_settings_page()
                 # If add entry shortcut is pressed
                 if keys[pygame.K_LCTRL] and event.key == pygame.K_a:
                     self.entry_list.add_entry()
@@ -907,9 +975,44 @@ class ChangePasswordPage:
             self.bruteforce_time += "s"
 
 
+def toggle_only_edit_mode():
+    global ONLY_EDIT_MODE
+    ONLY_EDIT_MODE = not ONLY_EDIT_MODE
+
+def save_and_exit_settings():
+    save_settings()
+    goto_main_page()
+
+
+class SettingsPage:
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.only_edit_mode_state = ONLY_EDIT_MODE
+        self.only_edit_mode_toggle_button = Button([self.pos[0] + self.width/2 - 200, self.pos[1] + 100], 400, 50, "Only Edit Mode: " + str(self.only_edit_mode_state), toggle_only_edit_mode)
+        self.save_button = Button([self.pos[0] + self.width - 104, self.pos[1] + 4], 100, 50, "Save", save_and_exit_settings)
+        self.cancel_button = Button([self.pos[0] + 4, self.pos[1] + 4], 100, 50, "Cancel", goto_main_page)
+
+    def draw(self, screen):
+        self.only_edit_mode_toggle_button.draw(screen)
+        self.save_button.draw(screen)
+        self.cancel_button.draw(screen)
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        self.only_edit_mode_toggle_button.update(mouseState)
+        self.save_button.update(mouseState)
+        self.cancel_button.update(mouseState)
+        if self.only_edit_mode_state != ONLY_EDIT_MODE:
+            self.only_edit_mode_state = ONLY_EDIT_MODE
+            self.only_edit_mode_toggle_button.text = "Only Edit Mode: " + str(self.only_edit_mode_state)
+
+
+
 main_page = MainPage()
 pwd_page = PasswordPage()
 change_pwd_page = ChangePasswordPage()
+settings_page = SettingsPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
 
 backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
 
@@ -952,6 +1055,10 @@ while running:
     elif current_page == "change_pwd":
         change_pwd_page.update(keys, mouseState, delta, events)
         change_pwd_page.draw(screen)
+    # Settings page
+    elif current_page == "settings":
+        settings_page.update(keys, mouseState, delta, events)
+        settings_page.draw(screen)
 
     pygame.display.update()
     screen.fill(BACKGROUND_COLOR)
