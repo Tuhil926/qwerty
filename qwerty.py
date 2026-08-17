@@ -110,7 +110,7 @@ def decrypt_and_goto_main_page() -> int:
     if not entries:
         return 1
     actual_pwd = pwd
-    main_page.__init__([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT, entries)
+    main_page.__init__([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60, entries)
     current_page = "main"
     return 0
 
@@ -380,14 +380,18 @@ class TextInput:
 
 class Button:
 
-    def __init__(self, pos, width, height, text="", onClick=None):
+    def __init__(self, pos, width, height, text="", onClick=None, background_color=BUTTON_DEFAULT_BACKGROUND_COLOR, hover_color=BUTTON_HOVER_BACKGROUND_COLOR, focus_color=BUTTON_FOCUS_BACKGROUND_COLOR, text_color=DEFAULT_TEXT_COLOR):
         self.pos = pos
         self.width = width
         self.height = height
         self.text = text
         self.onClick = onClick
         self.prev_mouse_state = True
-        self.color = BUTTON_DEFAULT_BACKGROUND_COLOR
+        self.color = background_color
+        self.background_color = background_color
+        self.hover_color = hover_color
+        self.focus_color = focus_color
+        self.text_color = text_color
 
     def draw(self, screen):
         # bounding box
@@ -395,7 +399,7 @@ class Button:
 
         # text
         if self.text != "":
-            text = font.render(self.text, False, DEFAULT_TEXT_COLOR)
+            text = font.render(self.text, False, self.text_color)
             screen.blit(text, (self.pos[0] + self.width / 2 - text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2))
 
     def update_dims(self, pos, width, height):
@@ -413,11 +417,11 @@ class Button:
                     self.onClick()
         if colliding:
             if mouse_clicked:
-                self.color = BUTTON_FOCUS_BACKGROUND_COLOR
+                self.color = self.focus_color
             else:
-                self.color = BUTTON_HOVER_BACKGROUND_COLOR
+                self.color = self.hover_color
         else:
-            self.color = BUTTON_DEFAULT_BACKGROUND_COLOR
+            self.color = self.background_color
         self.prev_mouse_state = mouse_pressed
 
 
@@ -801,8 +805,8 @@ class MainPage:
         self.pos = pos
         self.width = width
         self.height = height
-        self.entry_list_default_y_offset = 70 # The default, and maximum y value of the entry list
-        self.entry_list = EntryList((self.pos[0] + 10, self.pos[1] + self.entry_list_default_y_offset), self.width - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
+        self.entry_list_default_y_offset = self.pos[1] + 70 # The default, and maximum y value of the entry list
+        self.entry_list = EntryList((self.pos[0] + 10, self.entry_list_default_y_offset), self.width - 20, entries, default_y_offset=self.entry_list_default_y_offset, focus_on_searchbar=self.focus_on_searchbar, unfocus_on_searchbar=self.unfocus_on_searchbar)
         self.searchbar = TextInput((0, 0), 0, 0, alt_text="search", onInput=self.entry_list.set_filter_text, only_edit_mode=True, clear_on_escape=True, has_copy_button=False)
         self.searchbar.update_dims((self.pos[0] + 10, self.pos[1] + 10), self.width - 20, 50)
 
@@ -1069,27 +1073,82 @@ class SettingsPage:
             self.only_edit_mode_toggle_button.text = "Only Edit Mode: " + str(self.only_edit_mode_state)
 
 
-
-main_page = MainPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
-pwd_page = PasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
-change_pwd_page = ChangePasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
-settings_page = SettingsPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
+running = True
 
 backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
+def save_and_exit():
+    global running
+    running = False
+    screen.blit(backing_up_to_drive_text,
+                (SCREEN_WIDTH / 2 - backing_up_to_drive_text.get_width() / 2, SCREEN_HEIGHT / 2 - backing_up_to_drive_text.get_height() / 2))
+    pygame.display.update()
+    save_data()
+    pyperclip.copy("")
 
-running = True
+
+class TopBar:
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        N = 4
+        i1 = 0
+        i2 = 1
+        i3 = 2
+        i4 = 3
+        self.goto_main_page_button = Button((i1*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Passwords", goto_main_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+        self.goto_settings_page_button = Button((i2*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Settings", goto_settings_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+        self.goto_change_password_page_button = Button((i3*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Change Pwd", goto_change_pwd_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+        self.exit_button = Button((i4*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Save and Exit", save_and_exit, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+
+    def draw(self, screen):
+        self.goto_main_page_button.draw(screen)
+        self.goto_settings_page_button.draw(screen)
+        self.goto_change_password_page_button.draw(screen)
+        self.exit_button.draw(screen)
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        self.goto_main_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+        self.goto_settings_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+        self.goto_change_password_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+        self.goto_main_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
+        self.goto_settings_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
+        self.goto_change_password_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
+        self.goto_main_page_button.focus_color = BUTTON_FOCUS_BACKGROUND_COLOR
+        self.goto_settings_page_button.focus_color = BUTTON_FOCUS_BACKGROUND_COLOR
+        self.goto_change_password_page_button.focus_color = BUTTON_FOCUS_BACKGROUND_COLOR
+        if current_page == "main":
+            self.goto_main_page_button.background_color = BACKGROUND_COLOR
+            self.goto_main_page_button.hover_color = BACKGROUND_COLOR
+            self.goto_main_page_button.focus_color = BACKGROUND_COLOR
+        elif current_page == "settings":
+            self.goto_settings_page_button.background_color = BACKGROUND_COLOR
+            self.goto_settings_page_button.hover_color = BACKGROUND_COLOR
+            self.goto_settings_page_button.focus_color = BACKGROUND_COLOR
+        elif current_page == "change_pwd":
+            self.goto_change_password_page_button.background_color = BACKGROUND_COLOR
+            self.goto_change_password_page_button.hover_color = BACKGROUND_COLOR
+            self.goto_change_password_page_button.focus_color = BACKGROUND_COLOR
+
+        self.goto_main_page_button.update(mouseState)
+        self.goto_settings_page_button.update(mouseState)
+        self.goto_change_password_page_button.update(mouseState)
+        self.exit_button.update(mouseState)
+
+
+main_page = MainPage([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60)
+pwd_page = PasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
+change_pwd_page = ChangePasswordPage([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60)
+settings_page = SettingsPage([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60)
+top_bar = TopBar([0, 0], 0, 0)
+
 prev_time = time.time_ns()
 while running:
     events = pygame.event.get()
     early_break = False
     for event in events:
         if event.type == pygame.QUIT:
-            running = False
-            screen.blit(backing_up_to_drive_text,
-                        (SCREEN_WIDTH / 2 - backing_up_to_drive_text.get_width() / 2, SCREEN_HEIGHT / 2 - backing_up_to_drive_text.get_height() / 2))
-            pygame.display.update()
-            save_data()
-            pyperclip.copy("")
+            save_and_exit()
             early_break = True
     if early_break:
         break
@@ -1103,6 +1162,9 @@ while running:
     curr_time = time.time_ns()
     delta = (curr_time - prev_time) / 1e9
     prev_time = curr_time
+
+    if current_page != "pwd":
+        top_bar.update(keys, mouseState, delta, events)
 
     # Password page
     if current_page == "pwd":
@@ -1120,6 +1182,9 @@ while running:
     elif current_page == "settings":
         settings_page.update(keys, mouseState, delta, events)
         settings_page.draw(screen)
+
+    if current_page != "pwd":
+        top_bar.draw(screen)
 
     pygame.display.update()
     screen.fill(BACKGROUND_COLOR)
