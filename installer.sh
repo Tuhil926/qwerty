@@ -38,6 +38,7 @@ cp crypto_ops.py $INSTALL_DIR
 cp qwerty_cli.py $INSTALL_DIR
 cp qwerty.png $INSTALL_DIR
 cp PixelOperator8.ttf $INSTALL_DIR
+cp *_settings.json $INSTALL_DIR
 if [ "$USE_GOOGLE_DRIVE" -eq 1 ]; then
     cp client_secret.json $INSTALL_DIR
     cp qwerty_pull.py $INSTALL_DIR

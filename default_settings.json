@@ -1,0 +1,65 @@
+{
+    "screen_width": 1000,
+    "screen_height": 700,
+    "only_edit_mode": false,
+    "background_color": [
+        0,
+        0,
+        0
+    ],
+    "default_text_color": [
+        255,
+        255,
+        255
+    ],
+    "slightly_disabled_text_color": [
+        200,
+        200,
+        200
+    ],
+    "textinput_default_background_color": [
+        20,
+        20,
+        20
+    ],
+    "textinput_hover_background_color": [
+        30,
+        30,
+        30
+    ],
+    "textinput_focus_background_color": [
+        50,
+        50,
+        50
+    ],
+    "textinput_alt_text_color": [
+        120,
+        120,
+        120
+    ],
+    "button_default_background_color": [
+        40,
+        40,
+        40
+    ],
+    "button_hover_background_color": [
+        60,
+        60,
+        60
+    ],
+    "button_focus_background_color": [
+        80,
+        80,
+        80
+    ],
+    "copy_button_first_color": [
+        150,
+        150,
+        150
+    ],
+    "copy_button_second_color": [
+        200,
+        200,
+        200
+    ]
+}

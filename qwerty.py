@@ -30,42 +30,79 @@ BUTTON_DEFAULT_BACKGROUND_COLOR = (70, 70, 70)
 BUTTON_HOVER_BACKGROUND_COLOR = (100, 100, 100)
 BUTTON_FOCUS_BACKGROUND_COLOR = (120, 120, 120)
 
+COPY_BUTTON_FIRST_COLOR = (150, 150, 150)
+COPY_BUTTON_SECOND_COLOR = (200, 200, 200)
+
 def get_color_setting(json_object, key, default_value):
-    color_setting = json_object[key]
+    try:
+        color_setting = json_object[key]
+    except:
+        return default_value
     if isinstance(color_setting, list) and len(color_setting) == 3 and all(isinstance(value, int) for value in color_setting):
         return tuple(color_setting)
     return default_value
 
-try:
-    with open("settings.json", "r") as settings_file:
-        settings = json.load(settings_file)
+settings_just_loaded = 0
 
-    screen_width = settings["screen_width"]
-    if isinstance(screen_width, int) and screen_width > 0:
-        SCREEN_WIDTH = screen_width
+def load_settings_file(settings_filename):
+    global SCREEN_WIDTH
+    global SCREEN_HEIGHT
 
-    screen_height = settings["screen_height"]
-    if isinstance(screen_height, int) and screen_height > 0:
-        SCREEN_height = screen_height
+    global ONLY_EDIT_MODE
 
-    only_edit_mode = settings["only_edit_mode"]
-    if isinstance(only_edit_mode, bool):
-        ONLY_EDIT_MODE = only_edit_mode
+    global BACKGROUND_COLOR
+    global DEFAULT_TEXT_COLOR
+    global SLIGHTLY_DISABLED_TEXT_COLOR
 
-    BACKGROUND_COLOR = get_color_setting(settings, "background_color", BACKGROUND_COLOR)
-    DEFAULT_TEXT_COLOR = get_color_setting(settings, "default_text_color", DEFAULT_TEXT_COLOR)
-    SLIGHTLY_DISABLED_TEXT_COLOR = get_color_setting(settings, "slightly_disabled_text_color", SLIGHTLY_DISABLED_TEXT_COLOR)
+    global TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+    global TEXTINPUT_HOVER_BACKGROUND_COLOR
+    global TEXTINPUT_FOCUS_BACKGROUND_COLOR
+    global TEXTINPUT_ALT_TEXT_COLOR
 
-    TEXTINPUT_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "textinput_default_background_color", TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
-    TEXTINPUT_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "textinput_hover_background_color", TEXTINPUT_HOVER_BACKGROUND_COLOR)
-    TEXTINPUT_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "textinput_focus_background_color", TEXTINPUT_FOCUS_BACKGROUND_COLOR)
-    TEXTINPUT_ALT_TEXT_COLOR = get_color_setting(settings, "textinput_alt_text_color", TEXTINPUT_ALT_TEXT_COLOR)
+    global BUTTON_DEFAULT_BACKGROUND_COLOR
+    global BUTTON_HOVER_BACKGROUND_COLOR
+    global BUTTON_FOCUS_BACKGROUND_COLOR
 
-    BUTTON_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "button_default_background_color", BUTTON_DEFAULT_BACKGROUND_COLOR)
-    BUTTON_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "button_hover_background_color", BUTTON_HOVER_BACKGROUND_COLOR)
-    BUTTON_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "button_focus_background_color", BUTTON_FOCUS_BACKGROUND_COLOR)
-except:
-    print("Could not open settings file")
+    global COPY_BUTTON_FIRST_COLOR
+    global COPY_BUTTON_SECOND_COLOR
+
+    global settings_just_loaded
+    try:
+        with open(settings_filename, "r") as settings_file:
+            settings = json.load(settings_file)
+
+        screen_width = settings["screen_width"]
+        if isinstance(screen_width, int) and screen_width > 0:
+            SCREEN_WIDTH = screen_width
+
+        screen_height = settings["screen_height"]
+        if isinstance(screen_height, int) and screen_height > 0:
+            SCREEN_HEIGHT = screen_height
+
+        only_edit_mode = settings["only_edit_mode"]
+        if isinstance(only_edit_mode, bool):
+            ONLY_EDIT_MODE = only_edit_mode
+
+        BACKGROUND_COLOR = get_color_setting(settings, "background_color", BACKGROUND_COLOR)
+        DEFAULT_TEXT_COLOR = get_color_setting(settings, "default_text_color", DEFAULT_TEXT_COLOR)
+        SLIGHTLY_DISABLED_TEXT_COLOR = get_color_setting(settings, "slightly_disabled_text_color", SLIGHTLY_DISABLED_TEXT_COLOR)
+
+        TEXTINPUT_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "textinput_default_background_color", TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+        TEXTINPUT_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "textinput_hover_background_color", TEXTINPUT_HOVER_BACKGROUND_COLOR)
+        TEXTINPUT_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "textinput_focus_background_color", TEXTINPUT_FOCUS_BACKGROUND_COLOR)
+        TEXTINPUT_ALT_TEXT_COLOR = get_color_setting(settings, "textinput_alt_text_color", TEXTINPUT_ALT_TEXT_COLOR)
+
+        BUTTON_DEFAULT_BACKGROUND_COLOR = get_color_setting(settings, "button_default_background_color", BUTTON_DEFAULT_BACKGROUND_COLOR)
+        BUTTON_HOVER_BACKGROUND_COLOR = get_color_setting(settings, "button_hover_background_color", BUTTON_HOVER_BACKGROUND_COLOR)
+        BUTTON_FOCUS_BACKGROUND_COLOR = get_color_setting(settings, "button_focus_background_color", BUTTON_FOCUS_BACKGROUND_COLOR)
+
+        COPY_BUTTON_FIRST_COLOR = get_color_setting(settings, "copy_button_first_color", COPY_BUTTON_FIRST_COLOR)
+        COPY_BUTTON_SECOND_COLOR = get_color_setting(settings, "copy_button_second_color", COPY_BUTTON_SECOND_COLOR)
+    except:
+        print("Could not open settings file")
+    settings_just_loaded += 1
+
+load_settings_file("settings.json")
 
 deleted_entries = []
 
@@ -98,6 +135,9 @@ def save_settings():
             "button_default_background_color": BUTTON_DEFAULT_BACKGROUND_COLOR,
             "button_hover_background_color": BUTTON_HOVER_BACKGROUND_COLOR,
             "button_focus_background_color": BUTTON_FOCUS_BACKGROUND_COLOR,
+
+            "copy_button_first_color": COPY_BUTTON_FIRST_COLOR,
+            "copy_button_second_color": COPY_BUTTON_SECOND_COLOR,
         }
         json.dump(settings, settings_file, indent=4)
 
@@ -197,9 +237,7 @@ class TextInput:
         self.only_edit_mode = only_edit_mode
         self.on_navigation = on_navigation
         self.clear_on_escape = clear_on_escape
-        self.default_text = font.render("<lotta text>", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.alt_text = alt_text
-        self.alt_text_rendered = font.render(alt_text, False, TEXTINPUT_ALT_TEXT_COLOR)
         self.onEnter = onEnter
         self.onInput = onInput
         self.color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
@@ -239,8 +277,9 @@ class TextInput:
             # Otherwise render alt text if we're not editing, or if it's in edit only mode
             # (because otherwise alt text will not show in the initial password field since it's focuesd by default)
             elif not self.editing or self.only_edit_mode:
-                screen.blit(self.alt_text_rendered, (self.pos[0] + self.width / 2 - self.alt_text_rendered.get_width() / 2,
-                                                     self.pos[1] + self.height / 2 - self.alt_text_rendered.get_height() / 2))
+                alt_text_rendered = font.render(self.alt_text, False, TEXTINPUT_ALT_TEXT_COLOR)
+                screen.blit(alt_text_rendered, (self.pos[0] + self.width / 2 - alt_text_rendered.get_width() / 2,
+                                                     self.pos[1] + self.height / 2 - alt_text_rendered.get_height() / 2))
 
             # Always render the cursor if it's in edit mode
             if self.editing and self.is_cursor_visible:
@@ -249,8 +288,9 @@ class TextInput:
                     (self.pos[0] + self.width / 2 + text.get_width() / 2, self.pos[1] + self.height / 2 - text.get_height() / 2, 10, text.get_height()))
         # If the text doesn't fit, render <lotta text>
         else:
-            screen.blit(self.default_text,
-                        (self.pos[0] + self.width / 2 - self.default_text.get_width() / 2, self.pos[1] + self.height / 2 - self.default_text.get_height() / 2))
+            default_text = font.render("<lotta text>", False, SLIGHTLY_DISABLED_TEXT_COLOR)
+            screen.blit(default_text,
+                        (self.pos[0] + self.width / 2 - default_text.get_width() / 2, self.pos[1] + self.height / 2 - default_text.get_height() / 2))
         if self.has_copy_button:
             self.copy_button.draw(screen)
 
@@ -392,6 +432,7 @@ class Button:
         self.hover_color = hover_color
         self.focus_color = focus_color
         self.text_color = text_color
+        self.prev_settings_just_loaded = settings_just_loaded
 
     def draw(self, screen):
         # bounding box
@@ -408,6 +449,7 @@ class Button:
         self.height = height
 
     def update(self, mouseState):
+        global settings_just_loaded
         mouse_pos = mouseState[0]
         mouse_clicked = mouseState[1]
         colliding = collide_rect((self.pos[0], self.pos[1], self.width, self.height), mouse_pos)
@@ -424,6 +466,13 @@ class Button:
             self.color = self.background_color
         self.prev_mouse_state = mouse_pressed
 
+        if settings_just_loaded != self.prev_settings_just_loaded:
+            self.prev_settings_just_loaded = settings_just_loaded
+            self.background_color = BUTTON_DEFAULT_BACKGROUND_COLOR
+            self.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
+            self.focus_color = BUTTON_FOCUS_BACKGROUND_COLOR
+            self.text_color = DEFAULT_TEXT_COLOR
+
 
 class CopyButton:
     def __init__(self, pos, width, height, copy_callback):
@@ -436,8 +485,8 @@ class CopyButton:
     def draw(self, screen):
         if self.visible:
             self.copy_button.draw(screen)
-            pygame.draw.rect(screen, (150, 150, 150), (self.pos[0] + (self.width*3)//16, self.pos[1] + (self.height*3)//16, (self.width*7)//16, (self.height*7)//16))
-            pygame.draw.rect(screen, (200, 200, 200), (self.pos[0] + (self.width*6)//16, self.pos[1] + (self.height*6)//16, (self.width*7)//16, (self.height*7)//16))
+            pygame.draw.rect(screen, COPY_BUTTON_FIRST_COLOR, (self.pos[0] + (self.width*3)//16, self.pos[1] + (self.height*3)//16, (self.width*7)//16, (self.height*7)//16))
+            pygame.draw.rect(screen, COPY_BUTTON_SECOND_COLOR, (self.pos[0] + (self.width*6)//16, self.pos[1] + (self.height*6)//16, (self.width*7)//16, (self.height*7)//16))
 
     def update_dims(self, pos, width, height):
         self.pos = pos
@@ -905,7 +954,6 @@ class ChangePasswordPage:
         self.input_width = 600
         self.input_height = 50
         self.pwd_mismatched = False
-        self.pwd_not_match_msg = font.render("passwords don't match", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.input1 = TextInput((0, 0), 0, 0,
                                 alt_text="enter pwd",
                                 onEnter=focus_input_2,
@@ -921,7 +969,6 @@ class ChangePasswordPage:
         self.change_button = Button((self.pos[0] + self.width / 2 - 200, self.pos[1] + 3 * self.height / 4 - 25), 400, 50, text="Change password", onClick=self.on_change_password)
         self.cancel_button = Button((self.pos[0] + self.width / 2 - 200, self.pos[1] + 3 * self.height / 4 + 50), 400, 50, text="Cancel", onClick=self.on_cancel)
 
-        self.bruteforce_time_message = font.render("Time to bruteforce:", False, SLIGHTLY_DISABLED_TEXT_COLOR)
         self.bruteforce_time = "0 seconds"
         self.bruteforce_time_greenness = 0
 
@@ -960,10 +1007,12 @@ class ChangePasswordPage:
         self.change_button.draw(screen)
         self.cancel_button.draw(screen)
         if self.pwd_mismatched:
-            screen.blit(self.pwd_not_match_msg,
-                        (self.pos[0] + self.width / 2 - self.pwd_not_match_msg.get_width() / 2, self.pos[1] + self.height / 2 - self.pwd_not_match_msg.get_height() / 2))
-        screen.blit(self.bruteforce_time_message,
-                    (self.pos[0] + self.width / 2 - self.bruteforce_time_message.get_width() / 2, self.pos[1] + self.height / 4 - self.bruteforce_time_message.get_height() / 2 - 30))
+            pwd_not_match_msg = font.render("passwords don't match", False, SLIGHTLY_DISABLED_TEXT_COLOR)
+            screen.blit(pwd_not_match_msg,
+                        (self.pos[0] + self.width / 2 - pwd_not_match_msg.get_width() / 2, self.pos[1] + self.height / 2 - pwd_not_match_msg.get_height() / 2))
+        bruteforce_time_message = font.render("Time to bruteforce:", False, SLIGHTLY_DISABLED_TEXT_COLOR)
+        screen.blit(bruteforce_time_message,
+                    (self.pos[0] + self.width / 2 - bruteforce_time_message.get_width() / 2, self.pos[1] + self.height / 4 - bruteforce_time_message.get_height() / 2 - 30))
         calculated_bruteforce_time_message = font.render(self.bruteforce_time, False, (255 - self.bruteforce_time_greenness, self.bruteforce_time_greenness, 0))
         screen.blit(calculated_bruteforce_time_message,
                     (self.pos[0] + self.width / 2 - calculated_bruteforce_time_message.get_width() / 2, self.pos[1] + self.height / 4 - calculated_bruteforce_time_message.get_height() / 2 + 30))
@@ -1058,11 +1107,31 @@ class SettingsPage:
         self.only_edit_mode_toggle_button = Button([self.pos[0] + self.width/2 - 200, self.pos[1] + 100], 400, 50, "Only Edit Mode: " + str(self.only_edit_mode_state), toggle_only_edit_mode)
         self.save_button = Button([self.pos[0] + self.width - 104, self.pos[1] + 4], 100, 50, "Save", save_and_exit_settings)
         self.cancel_button = Button([self.pos[0] + 4, self.pos[1] + 4], 100, 50, "Cancel", goto_main_page)
+        self.preset_button = Button([self.pos[0] + self.width/2 - 250, self.pos[1] + 200], 400, 50, "default", self.next_preset)
+        self.load_preset_button = Button([self.pos[0] + self.width/2 + 175, self.pos[1] + 200], 100, 50, "Load", self.load_preset)
+        # self.presets = ["defalut", "lets_go_blind", "neon", "coffee", "random"]
+        self.presets = []
+        self.current_preset_index = 0
+
+        self.preset_buttons = []
+        for filename in os.listdir():
+            if filename.endswith("_settings.json"):
+                self.presets.append(filename)
+
+    def next_preset(self):
+        if len(self.presets):
+            self.current_preset_index = (self.current_preset_index + 1) % len(self.presets)
+
+    def load_preset(self):
+        if len(self.presets):
+            load_settings_file(self.presets[self.current_preset_index])
 
     def draw(self, screen):
         self.only_edit_mode_toggle_button.draw(screen)
         self.save_button.draw(screen)
         self.cancel_button.draw(screen)
+        self.preset_button.draw(screen)
+        self.load_preset_button.draw(screen)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.only_edit_mode_toggle_button.update(mouseState)
@@ -1071,6 +1140,10 @@ class SettingsPage:
         if self.only_edit_mode_state != ONLY_EDIT_MODE:
             self.only_edit_mode_state = ONLY_EDIT_MODE
             self.only_edit_mode_toggle_button.text = "Only Edit Mode: " + str(self.only_edit_mode_state)
+        if len(self.presets):
+            self.preset_button.text = self.presets[self.current_preset_index][:-14]
+        self.preset_button.update(mouseState)
+        self.load_preset_button.update(mouseState)
 
 
 running = True
@@ -1096,10 +1169,10 @@ class TopBar:
         i2 = 1
         i3 = 2
         i4 = 3
-        self.goto_main_page_button = Button((i1*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Passwords", goto_main_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
-        self.goto_settings_page_button = Button((i2*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Settings", goto_settings_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
-        self.goto_change_password_page_button = Button((i3*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Change Pwd", goto_change_pwd_page, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
-        self.exit_button = Button((i4*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Save and Exit", save_and_exit, TEXTINPUT_DEFAULT_BACKGROUND_COLOR)
+        self.goto_main_page_button = Button((i1*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Passwords", goto_main_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
+        self.goto_settings_page_button = Button((i2*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Settings", goto_settings_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
+        self.goto_change_password_page_button = Button((i3*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Change Pwd", goto_change_pwd_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
+        self.exit_button = Button((i4*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Save and Exit", save_and_exit, BUTTON_DEFAULT_BACKGROUND_COLOR)
 
     def draw(self, screen):
         self.goto_main_page_button.draw(screen)
@@ -1108,9 +1181,9 @@ class TopBar:
         self.exit_button.draw(screen)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
-        self.goto_main_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
-        self.goto_settings_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
-        self.goto_change_password_page_button.background_color = TEXTINPUT_DEFAULT_BACKGROUND_COLOR
+        self.goto_main_page_button.background_color = BUTTON_DEFAULT_BACKGROUND_COLOR
+        self.goto_settings_page_button.background_color = BUTTON_DEFAULT_BACKGROUND_COLOR
+        self.goto_change_password_page_button.background_color = BUTTON_DEFAULT_BACKGROUND_COLOR
         self.goto_main_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
         self.goto_settings_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
         self.goto_change_password_page_button.hover_color = BUTTON_HOVER_BACKGROUND_COLOR
