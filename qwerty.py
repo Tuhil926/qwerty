@@ -4,6 +4,8 @@ import pyperclip
 import pygame
 import time
 import math
+import threading
+import subprocess
 from crypto_ops import *
 from qwerty_oauth import *
 from enum import Enum
@@ -33,6 +35,12 @@ BUTTON_FOCUS_BACKGROUND_COLOR = (120, 120, 120)
 COPY_BUTTON_FIRST_COLOR = (150, 150, 150)
 COPY_BUTTON_SECOND_COLOR = (200, 200, 200)
 
+DRIVE_ENABLED = True
+
+drive_enabled_on_load = False
+
+changes_saved_locally = False
+
 def get_color_setting(json_object, key, default_value):
     try:
         color_setting = json_object[key]
@@ -41,6 +49,17 @@ def get_color_setting(json_object, key, default_value):
     if isinstance(color_setting, list) and len(color_setting) == 3 and all(isinstance(value, int) for value in color_setting):
         return tuple(color_setting)
     return default_value
+
+
+def get_setting(json_object, key, setting_type, default_value):
+    try:
+        setting = json_object[key]
+    except:
+        return default_value
+    if isinstance(setting, setting_type):
+        return setting
+    return default_value
+
 
 settings_just_loaded = 0
 
@@ -66,22 +85,16 @@ def load_settings_file(settings_filename):
     global COPY_BUTTON_FIRST_COLOR
     global COPY_BUTTON_SECOND_COLOR
 
+    global DRIVE_ENABLED
+
     global settings_just_loaded
     try:
         with open(settings_filename, "r") as settings_file:
             settings = json.load(settings_file)
 
-        screen_width = settings["screen_width"]
-        if isinstance(screen_width, int) and screen_width > 0:
-            SCREEN_WIDTH = screen_width
-
-        screen_height = settings["screen_height"]
-        if isinstance(screen_height, int) and screen_height > 0:
-            SCREEN_HEIGHT = screen_height
-
-        only_edit_mode = settings["only_edit_mode"]
-        if isinstance(only_edit_mode, bool):
-            ONLY_EDIT_MODE = only_edit_mode
+        SCREEN_WIDTH = get_setting(settings, "screen_width", int, SCREEN_WIDTH)
+        SCREEN_HEIGHT = get_setting(settings, "screen_height", int, SCREEN_HEIGHT)
+        ONLY_EDIT_MODE = get_setting(settings, "only_edit_mode", bool, ONLY_EDIT_MODE)
 
         BACKGROUND_COLOR = get_color_setting(settings, "background_color", BACKGROUND_COLOR)
         DEFAULT_TEXT_COLOR = get_color_setting(settings, "default_text_color", DEFAULT_TEXT_COLOR)
@@ -98,11 +111,14 @@ def load_settings_file(settings_filename):
 
         COPY_BUTTON_FIRST_COLOR = get_color_setting(settings, "copy_button_first_color", COPY_BUTTON_FIRST_COLOR)
         COPY_BUTTON_SECOND_COLOR = get_color_setting(settings, "copy_button_second_color", COPY_BUTTON_SECOND_COLOR)
+
+        DRIVE_ENABLED = get_setting(settings, "drive_enabled", bool, DRIVE_ENABLED)
     except:
         print("Could not open settings file")
     settings_just_loaded += 1
 
 load_settings_file("settings.json")
+drive_enabled_on_load = DRIVE_ENABLED
 
 deleted_entries = []
 
@@ -138,6 +154,7 @@ def save_settings():
 
             "copy_button_first_color": COPY_BUTTON_FIRST_COLOR,
             "copy_button_second_color": COPY_BUTTON_SECOND_COLOR,
+            "drive_enabled": DRIVE_ENABLED,
         }
         json.dump(settings, settings_file, indent=4)
 
@@ -175,17 +192,24 @@ def goto_settings_page():
     global current_page
     current_page = "settings"
 
+def goto_exit_page():
+    global current_page
+    current_page = "exit"
+
 def goto_main_page():
     global current_page
     current_page = "main"
 
 
 def save_data():
-    global main_page, actual_pwd, start_hash, end_hash
+    global main_page, actual_pwd, start_hash, end_hash, changes_saved_locally
     if actual_pwd == "":
         return
     text = main_page.entry_list.get_text()
-    if save_entries(text, actual_pwd) or not os.path.exists("token.pickle"):
+    # whether there was any changes locally. Don't back up if no changes
+    any_local_changes = save_entries(text, actual_pwd)
+    changes_saved_locally = True
+    if (any_local_changes or not os.path.exists("token.pickle") or not drive_enabled_on_load) and DRIVE_ENABLED:
         try:
             drive_service = authenticate()
             upload_file(drive_service, QWERTY_FILENAME, QWERTY_FILENAME)
@@ -1093,9 +1117,25 @@ def toggle_only_edit_mode():
     global ONLY_EDIT_MODE
     ONLY_EDIT_MODE = not ONLY_EDIT_MODE
 
+
+def toggle_drive_enabled():
+    global DRIVE_ENABLED
+    DRIVE_ENABLED = not DRIVE_ENABLED
+
+
 def save_and_exit_settings():
     save_settings()
     goto_main_page()
+
+
+def open_file_in_editor(file_path):
+    # TODO: figure out how to make this work on windows and mac
+    file_path = os.path.abspath(file_path)
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if editor:
+        subprocess.Popen([editor, file_path])
+    else:
+        subprocess.Popen(["xdg-open", file_path])
 
 
 class SettingsPage:
@@ -1105,11 +1145,14 @@ class SettingsPage:
         self.height = height
         self.only_edit_mode_state = ONLY_EDIT_MODE
         self.only_edit_mode_toggle_button = Button([self.pos[0] + self.width/2 - 200, self.pos[1] + 100], 400, 50, "Only Edit Mode: " + str(self.only_edit_mode_state), toggle_only_edit_mode)
-        self.save_button = Button([self.pos[0] + self.width - 104, self.pos[1] + 4], 100, 50, "Save", save_and_exit_settings)
-        self.cancel_button = Button([self.pos[0] + 4, self.pos[1] + 4], 100, 50, "Cancel", goto_main_page)
-        self.preset_button = Button([self.pos[0] + self.width/2 - 250, self.pos[1] + 200], 400, 50, "default", self.next_preset)
-        self.load_preset_button = Button([self.pos[0] + self.width/2 + 175, self.pos[1] + 200], 100, 50, "Load", self.load_preset)
-        # self.presets = ["defalut", "lets_go_blind", "neon", "coffee", "random"]
+        self.save_button = Button([self.pos[0] + self.width - 110, self.pos[1] + 10], 100, 50, "Save", save_and_exit_settings)
+        self.open_settings_file_button = Button([self.pos[0] + self.width // 2 - 300, self.pos[1] + 10], 600, 50, "Open settings file", self.open_settings_file)
+        self.cancel_button = Button([self.pos[0] + 10, self.pos[1] + 10], 100, 50, "Cancel", goto_main_page)
+        self.preset_button = Button([self.pos[0] + self.width/2 - 320, self.pos[1] + 200], 400, 50, "config file: default", self.next_preset)
+        self.load_preset_button = Button([self.pos[0] + self.width/2 + 100, self.pos[1] + 200], 100, 50, "Load", self.load_preset)
+        self.open_preset_file_button = Button([self.pos[0] + self.width/2 + 220, self.pos[1] + 200], 100, 50, "Open", self.open_preset_file)
+        self.drive_enabled_state = DRIVE_ENABLED
+        self.drive_enabled_button = Button([self.pos[0] + self.width/2 - 200, self.pos[1] + 300], 400, 50, "Drive Enabled: " + str(self.drive_enabled_state), toggle_drive_enabled)
         self.presets = []
         self.current_preset_index = 0
 
@@ -1126,37 +1169,91 @@ class SettingsPage:
         if len(self.presets):
             load_settings_file(self.presets[self.current_preset_index])
 
+    def open_settings_file(self):
+        open_file_in_editor("settings.json")
+
+    def open_preset_file(self):
+        if not len(self.presets):
+            return
+        try:
+            open_file_in_editor(self.presets[self.current_preset_index])
+        except:
+            print("Could not open preset file")
+
     def draw(self, screen):
         self.only_edit_mode_toggle_button.draw(screen)
         self.save_button.draw(screen)
+        self.open_settings_file_button.draw(screen)
         self.cancel_button.draw(screen)
         self.preset_button.draw(screen)
         self.load_preset_button.draw(screen)
+        self.open_preset_file_button.draw(screen)
+        self.drive_enabled_button.draw(screen)
 
     def update(self, keys, mouseState, delta=0.0, events=[]):
         self.only_edit_mode_toggle_button.update(mouseState)
         self.save_button.update(mouseState)
+        self.open_settings_file_button.update(mouseState)
         self.cancel_button.update(mouseState)
         if self.only_edit_mode_state != ONLY_EDIT_MODE:
             self.only_edit_mode_state = ONLY_EDIT_MODE
             self.only_edit_mode_toggle_button.text = "Only Edit Mode: " + str(self.only_edit_mode_state)
+        if self.drive_enabled_state != DRIVE_ENABLED:
+            self.drive_enabled_state = DRIVE_ENABLED
+            self.drive_enabled_button.text = "Drive Enabled: " + str(self.drive_enabled_state)
         if len(self.presets):
-            self.preset_button.text = self.presets[self.current_preset_index][:-14]
+            self.preset_button.text = "config file: " + self.presets[self.current_preset_index][:-14]
         self.preset_button.update(mouseState)
         self.load_preset_button.update(mouseState)
+        self.open_preset_file_button.update(mouseState)
+        self.drive_enabled_button.update(mouseState)
 
 
 running = True
 
-backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
-def save_and_exit():
-    global running
-    running = False
-    screen.blit(backing_up_to_drive_text,
-                (SCREEN_WIDTH / 2 - backing_up_to_drive_text.get_width() / 2, SCREEN_HEIGHT / 2 - backing_up_to_drive_text.get_height() / 2))
-    pygame.display.update()
-    save_data()
-    pyperclip.copy("")
+
+class BackingUp:
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.width = width
+        self.height = height
+        self.cancel_button = Button((self.pos[0] + self.width//2 - 300, self.pos[1] + self.height//2 + 30), 600, 50, "Exit without saving (force quit)", self.cancel, BUTTON_DEFAULT_BACKGROUND_COLOR)
+        self.save_thread = None
+
+    def draw(self, screen):
+        if DRIVE_ENABLED:
+            if changes_saved_locally:
+                backing_up_to_drive_text = font.render("Backing up to drive..", False, DEFAULT_TEXT_COLOR)
+            else:
+                backing_up_to_drive_text = font.render("Saving and backing up to drive..", False, DEFAULT_TEXT_COLOR)
+        else:
+            backing_up_to_drive_text = font.render("Saving to file..", False, DEFAULT_TEXT_COLOR)
+        screen.blit(backing_up_to_drive_text,
+                (self.pos[0] + self.width // 2 - backing_up_to_drive_text.get_width() / 2, self.pos[1] + self.height // 2 - backing_up_to_drive_text.get_height() / 2 - 70))
+
+        if changes_saved_locally:
+            saved_locally_text = font.render("Saved locally", False, (0, 255, 0))
+            screen.blit(saved_locally_text,
+                    (self.pos[0] + self.width // 2 - saved_locally_text.get_width() / 2, self.pos[1] + self.height  - 100))
+        self.cancel_button.draw(screen)
+
+    def update(self, keys, mouseState, delta=0.0, events=[]):
+        global running
+        self.cancel_button.update(mouseState)
+        self.save_and_exit()
+        if self.save_thread:
+            if not self.save_thread.is_alive():
+                running = False
+
+    def cancel(self):
+        os._exit(1)
+
+    def save_and_exit(self):
+        if self.save_thread:
+            return
+        pyperclip.copy("")
+        self.save_thread = threading.Thread(None, save_data)
+        self.save_thread.start()
 
 
 class TopBar:
@@ -1172,7 +1269,7 @@ class TopBar:
         self.goto_main_page_button = Button((i1*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Passwords", goto_main_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
         self.goto_settings_page_button = Button((i2*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Settings", goto_settings_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
         self.goto_change_password_page_button = Button((i3*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Change Pwd", goto_change_pwd_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
-        self.exit_button = Button((i4*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Save and Exit", save_and_exit, BUTTON_DEFAULT_BACKGROUND_COLOR)
+        self.exit_button = Button((i4*SCREEN_WIDTH//N, 0), SCREEN_WIDTH//N, 60, "Save and Exit", goto_exit_page, BUTTON_DEFAULT_BACKGROUND_COLOR)
 
     def draw(self, screen):
         self.goto_main_page_button.draw(screen)
@@ -1214,6 +1311,7 @@ pwd_page = PasswordPage([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
 change_pwd_page = ChangePasswordPage([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60)
 settings_page = SettingsPage([0, 60], SCREEN_WIDTH, SCREEN_HEIGHT - 60)
 top_bar = TopBar([0, 0], 0, 0)
+exit_page = BackingUp([0, 0], SCREEN_WIDTH, SCREEN_HEIGHT)
 
 prev_time = time.time_ns()
 while running:
@@ -1221,10 +1319,7 @@ while running:
     early_break = False
     for event in events:
         if event.type == pygame.QUIT:
-            save_and_exit()
-            early_break = True
-    if early_break:
-        break
+            goto_exit_page()
 
     # Inputs
     keys = pygame.key.get_pressed()
@@ -1236,7 +1331,7 @@ while running:
     delta = (curr_time - prev_time) / 1e9
     prev_time = curr_time
 
-    if current_page != "pwd":
+    if current_page not in ("pwd", "exit"):
         top_bar.update(keys, mouseState, delta, events)
 
     # Password page
@@ -1256,7 +1351,12 @@ while running:
         settings_page.update(keys, mouseState, delta, events)
         settings_page.draw(screen)
 
-    if current_page != "pwd":
+    # Exit page
+    elif current_page == "exit":
+        exit_page.update(keys, mouseState, delta, events)
+        exit_page.draw(screen)
+
+    if current_page not in ("pwd", "exit"):
         top_bar.draw(screen)
 
     pygame.display.update()
