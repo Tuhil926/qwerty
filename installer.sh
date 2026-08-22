@@ -21,15 +21,25 @@ echo 'Installing qwerty at '"$INSTALL_DIR"' and '"$EXEC_DIR"' using '"$USER_PYTH
 mkdir -p $INSTALL_DIR
 mkdir -p $EXEC_DIR
 
+if ! $USER_PYTHON -m venv --help >/dev/null 2>&1; then
+    echo "ERROR: $USER_PYTHON doesn't have venv support"
+    echo "run:"
+    echo "sudo apt install $USER_PYTHON-venv"
+    echo "or a similar command based on your package maneger and re-run the installer"
+    exit 1
+fi
+
 PYTHON="$INSTALL_DIR/venv/bin/python"
 
-if [ ! -d $INSTALL_DIR/venv ]; then
-    echo 'Creating a python virtual environment...'
-    $USER_PYTHON -m venv $INSTALL_DIR/venv
-    echo 'Installing necessary requirements...'
-    $PYTHON -m pip install -r requirements.txt
-    echo 'done'
+if [ ! -x "$PYTHON" ]; then
+    echo "Creating a Python virtual environment..."
+    rm -rf "$INSTALL_DIR/venv"
+    $USER_PYTHON -m venv "$INSTALL_DIR/venv" || exit 1
 fi
+
+echo "Installing necessary requirements..."
+"$PYTHON" -m pip install -r requirements.txt || exit 1
+echo "done"
 
 echo 'copying files to '"$INSTALL_DIR"'...'
 
