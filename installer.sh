@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # put the command you use to run python here
 USER_PYTHON="python3"
@@ -18,14 +19,21 @@ USE_GOOGLE_DRIVE=1
 
 echo 'Installing qwerty at '"$INSTALL_DIR"' and '"$EXEC_DIR"' using '"$USER_PYTHON"' as the python command...'
 
-mkdir -p $INSTALL_DIR
-mkdir -p $EXEC_DIR
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$EXEC_DIR"
 
-if ! $USER_PYTHON -m venv --help >/dev/null 2>&1; then
+if ! "$USER_PYTHON" -m venv --help >/dev/null 2>&1; then
     echo "ERROR: $USER_PYTHON doesn't have venv support"
-    echo "run:"
-    echo "sudo apt install $USER_PYTHON-venv"
-    echo "or a similar command based on your package maneger and re-run the installer"
+    read -r -p "Would you like to $USER_PYTHON-venv using 'sudo apt install $USER_PYTHON-venv'? [Y/n] " response
+
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ || -z "$response" ]]; then
+        sudo apt install "$USER_PYTHON-venv"|| exit 1
+        echo "Success. Please re-run the installer"
+    else
+        echo "run:"
+        echo "sudo apt install $USER_PYTHON-venv"
+        echo "or a similar command based on your package manager and re-run the installer"
+    fi
     exit 1
 fi
 
@@ -46,19 +54,32 @@ echo "Installing necessary requirements..."
 "$PYTHON" -m pip install -r requirements.txt || exit 1
 echo "done"
 
+if ! "$PYTHON" -c 'import pyperclip; pyperclip.copy("")' >/dev/null 2>&1; then
+    echo "Looks like pyperclip does not have a clipboard backend."
+    read -r -p "Would you like to install xclip using 'sudo apt install xclip'? [Y/n] " response
+
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ || -z "$response" ]]; then
+        sudo apt install xclip || exit 1
+        echo "xclip installed. Please re-run the installer."
+    else
+        echo "Please install it manually and re-run this installer."
+    fi
+    exit 1
+fi
+
 echo 'copying files to '"$INSTALL_DIR"'...'
 
-cp qwerty.py $INSTALL_DIR
-cp crypto_ops.py $INSTALL_DIR
-cp qwerty_cli.py $INSTALL_DIR
-cp qwerty.png $INSTALL_DIR
-cp PixelOperator8.ttf $INSTALL_DIR
-cp *_settings.json $INSTALL_DIR
+cp qwerty.py "$INSTALL_DIR"
+cp crypto_ops.py "$INSTALL_DIR"
+cp qwerty_cli.py "$INSTALL_DIR"
+cp qwerty.png "$INSTALL_DIR"
+cp PixelOperator8.ttf "$INSTALL_DIR"
+cp *_settings.json "$INSTALL_DIR"
 if [ "$USE_GOOGLE_DRIVE" -eq 1 ]; then
-    cp client_secret.json $INSTALL_DIR
-    cp qwerty_pull.py $INSTALL_DIR
+    cp client_secret.json "$INSTALL_DIR"
+    cp qwerty_pull.py "$INSTALL_DIR"
 fi
-cp qwerty_oauth.py $INSTALL_DIR
+cp qwerty_oauth.py "$INSTALL_DIR"
 echo '#!/bin/bash
 cd '"$INSTALL_DIR"'
 if [ "$1" = "cli" ]; then
@@ -85,7 +106,7 @@ Terminal=false
 Comment=Definitely not a password manager
 Keywords=qwerty;password;' > qwerty.desktop
 
-cp qwerty.desktop $DESKTOP_FILE_DIR
+cp qwerty.desktop "$DESKTOP_FILE_DIR"
 
 printf "\n\n"
 echo "qwerty installed successfully! run the command 'qwerty' to start it, or 'qwerty cli' to start the cli."
