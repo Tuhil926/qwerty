@@ -34,7 +34,12 @@ PYTHON="$INSTALL_DIR/venv/bin/python"
 if [ ! -x "$PYTHON" ]; then
     echo "Creating a Python virtual environment..."
     rm -rf "$INSTALL_DIR/venv"
-    $USER_PYTHON -m venv "$INSTALL_DIR/venv" || exit 1
+    $USER_PYTHON -m venv --with-pip "$INSTALL_DIR/venv" || exit 1
+fi
+
+if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+    echo "ERROR: Failed to create a Python virtual environment with pip."
+    exit 1
 fi
 
 echo "Installing necessary requirements..."
